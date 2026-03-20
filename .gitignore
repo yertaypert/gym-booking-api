@@ -1,6 +1,12 @@
+# IDEs
 .idea/
+.vscode/
+
+# Binaries
 bin/
 *.exe
 *.out
+
+# GO dependencies
 vendor/
 
