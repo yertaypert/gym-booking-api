@@ -3,7 +3,7 @@ CREATE TYPE user_role AS ENUM ('admin', 'user');
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     email VARCHAR(50) UNIQUE NOT NULL,
-    password_hash VARCHAR(50) NOT NULL,
+    password_hash TEXT NOT NULL,
     full_name VARCHAR(50),
     role user_role DEFAULT 'user',
     balance DECIMAL(10, 2) DEFAULT 0.00,
@@ -40,17 +40,19 @@ CREATE TYPE booking_status AS ENUM ('pending', 'confirmed', 'attended', 'cancell
 
 CREATE TABLE bookings (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id),
-    session_id INTEGER REFERENCES class_sessions(id),
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    session_id INTEGER NOT NULL REFERENCES class_sessions(id) ON DELETE CASCADE,
     status booking_status DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
+    CONSTRAINT unique_user_session UNIQUE (user_id, session_id)
 );
 
 CREATE TYPE transaction_type AS ENUM ('top_up', 'freeze', 'payment', 'refund');
 
 CREATE TABLE transactions (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id),
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     booking_id INTEGER REFERENCES bookings(id),
     amount DECIMAL(10, 2) NOT NULL,
     type transaction_type NOT NULL,
