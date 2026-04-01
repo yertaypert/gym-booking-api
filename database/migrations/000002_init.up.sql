@@ -1,6 +1,6 @@
 CREATE TYPE user_role AS ENUM ('admin', 'user');
 
-CREATE TABLE user (
+CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     email VARCHAR(50) UNIQUE NOT NULL,
     password_hash VARCHAR(50) NOT NULL,
@@ -10,14 +10,14 @@ CREATE TABLE user (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE gym (
+CREATE TABLE gyms (
     id SERIAL PRIMARY KEY,
     name VARCHAR(50) NOT NULL,
     address TEXT,
     description TEXT
 );
 
-CREATE TABLE class (
+CREATE TABLE classes (
     id SERIAL PRIMARY KEY,
     gym_id INTEGER REFERENCES gyms(id) ON DELETE CASCADE,
     name VARCHAR(50) NOT NULL,
@@ -26,7 +26,7 @@ CREATE TABLE class (
 
 CREATE TYPE session_status AS ENUM ('active', 'cancelled', 'completed');
 
-CREATE TABLE class_session (
+CREATE TABLE class_sessions (
     id SERIAL PRIMARY KEY,
     class_id INTEGER REFERENCES classes(id) ON DELETE CASCADE,
     start_time TIMESTAMP NOT NULL,
@@ -38,7 +38,7 @@ CREATE TABLE class_session (
 
 CREATE TYPE booking_status AS ENUM ('pending', 'confirmed', 'attended', 'cancelled');
 
-CREATE TABLE booking (
+CREATE TABLE bookings (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id),
     session_id INTEGER REFERENCES class_sessions(id),
@@ -48,7 +48,7 @@ CREATE TABLE booking (
 
 CREATE TYPE transaction_type AS ENUM ('top_up', 'freeze', 'payment', 'refund');
 
-CREATE TABLE transaction (
+CREATE TABLE transactions (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id),
     booking_id INTEGER REFERENCES bookings(id),

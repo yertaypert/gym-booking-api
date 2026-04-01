@@ -10,3 +10,8 @@ bin/
 # GO dependencies
 vendor/
 
+# Env
+.env
+
+# Logging
+*.log
