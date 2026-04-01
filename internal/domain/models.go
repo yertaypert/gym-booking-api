@@ -1,16 +1,16 @@
-package models
+package domain
 
 import "time"
 
-type User struct {
-	ID           int       `json:"id"`
-	Email        string    `json:"email"`
-	PasswordHash string    `json:"-"`
-	FullName     string    `json:"full_name"`
-	Role         string    `json:"role"`
-	Balance      float64   `json:"balance"`
-	CreatedAt    time.Time `json:"created_at"`
-}
+//type User struct {
+//	ID           int       `json:"id"`
+//	Email        string    `json:"email"`
+//	PasswordHash string    `json:"-"`
+//	FullName     string    `json:"full_name"`
+//	Role         string    `json:"role"`
+//	Balance      float64   `json:"balance"`
+//	CreatedAt    time.Time `json:"created_at"`
+//}
 
 type Booking struct {
 	ID        int       `json:"id"`
