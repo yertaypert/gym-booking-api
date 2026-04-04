@@ -22,6 +22,10 @@ func NewDB(cfg *config.Config) *sql.DB {
 		log.Fatal(err)
 	}
 
+	if err := db.Ping(); err != nil {
+		log.Fatal("Cannot connect to DB:", err)
+	}
+
 	// Run migrations automatically on start
 	driver, err := postgres.WithInstance(db, &postgres.Config{})
 	if err != nil {

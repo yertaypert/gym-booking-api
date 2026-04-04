@@ -1,25 +1,23 @@
 package repository
 
 import (
-	"context"
 	"database/sql"
 
 	"github.com/yertaypert/gym-booking-api/internal/domain"
 )
 
-type sqlBookingRepository struct {
+type BookingRepository struct {
 	db *sql.DB
 }
 
-func NewBookingRepository(db *sql.DB) BookingRepository {
-	return &sqlBookingRepository{db: db}
+func NewBookingRepository(db *sql.DB) *BookingRepository {
+	return &BookingRepository{db: db}
 }
 
-func (r *sqlBookingRepository) Create(ctx context.Context, tx *sql.Tx, userID, sessionID int) (int, error) {
+func (r *BookingRepository) Create(tx *sql.Tx, userID, sessionID int) (int, error) {
 	var id int
 	query := `INSERT INTO bookings (user_id, session_id, status) VALUES ($1, $2, 'pending') RETURNING id`
-
-	err := tx.QueryRowContext(ctx, query, userID, sessionID).Scan(&id)
+	err := tx.QueryRow(query, userID, sessionID).Scan(&id)
 	return id, err
 }
 func (r *sqlBookingRepository) UpdateStatus(ctx context.Context, tx *sql.Tx, bookingID int, status string) error {

@@ -43,7 +43,7 @@ CREATE TABLE bookings (
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     session_id INTEGER NOT NULL REFERENCES class_sessions(id) ON DELETE CASCADE,
     status booking_status DEFAULT 'pending',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT unique_user_session UNIQUE (user_id, session_id)
 );
