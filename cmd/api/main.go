@@ -27,14 +27,39 @@ func main() {
 
 	// Init layers
 	userRepo := repository.NewUserRepository(db)
+	gymRepo := repository.NewGymRepository(db)
 	authUsecase := usecase.NewAuthUsecase(userRepo)
+	gymUsecase := usecase.NewGymUsecase(gymRepo)
 	authHandler := handler.NewAuthHandler(authUsecase)
+	gymHandler := handler.NewGymHandler(gymUsecase)
 
 	// Setup routes
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/register", authHandler.Register)
 	mux.HandleFunc("/login", authHandler.Login)
+	mux.HandleFunc("GET /gyms", gymHandler.ListGyms)
+	mux.HandleFunc("GET /gyms/{id}", gymHandler.GetGym)
+	mux.HandleFunc("GET /gyms/{id}/classes", gymHandler.ListGymClasses)
+	mux.HandleFunc("GET /gyms/{gymId}/classes/{classId}/sessions", gymHandler.ListClassSessions)
+	mux.Handle(
+		"POST /gyms",
+		middleware.AuthMiddleware(
+			middleware.RequireRoles(domain.RoleAdmin)(http.HandlerFunc(gymHandler.CreateGym)),
+		),
+	)
+	mux.Handle(
+		"POST /gyms/{id}/classes",
+		middleware.AuthMiddleware(
+			middleware.RequireRoles(domain.RoleAdmin)(http.HandlerFunc(gymHandler.CreateClass)),
+		),
+	)
+	mux.Handle(
+		"POST /gyms/{gymId}/classes/{classId}/sessions",
+		middleware.AuthMiddleware(
+			middleware.RequireRoles(domain.RoleAdmin)(http.HandlerFunc(gymHandler.CreateSession)),
+		),
+	)
 
 	mux.Handle("/me", middleware.AuthMiddleware(http.HandlerFunc(authHandler.Me)))
 	mux.Handle(

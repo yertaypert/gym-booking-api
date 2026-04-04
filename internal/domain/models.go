@@ -33,7 +33,22 @@ type Session struct {
 	ID             int       `json:"id"`
 	ClassID        int       `json:"class_id"`
 	StartTime      time.Time `json:"start_time"`
+	EndTime        time.Time `json:"end_time"`
 	AvailableSlots int       `json:"available_slots"`
 	Price          float64   `json:"price"`
 	Status         string    `json:"status"`
+}
+
+type Gym struct {
+	ID          int    `json:"id"`
+	Name        string `json:"name"`
+	Address     string `json:"address"`
+	Description string `json:"description"`
+}
+
+type Class struct {
+	ID          int    `json:"id"`
+	GymID       int    `json:"gym_id"`
+	Name        string `json:"name"`
+	MaxCapacity int    `json:"max_capacity"`
 }
