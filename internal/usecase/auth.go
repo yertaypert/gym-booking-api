@@ -3,11 +3,14 @@ package usecase
 import (
 	"errors"
 
+	"github.com/lib/pq"
 	"github.com/yertaypert/gym-booking-api/internal/auth"
 	"github.com/yertaypert/gym-booking-api/internal/domain"
 	"github.com/yertaypert/gym-booking-api/internal/repository"
 	"golang.org/x/crypto/bcrypt"
 )
+
+var ErrEmailAlreadyExists = errors.New("email already exists")
 
 type AuthUsecase struct {
 	userRepo *repository.UserRepository
@@ -32,6 +35,13 @@ func (u *AuthUsecase) Register(email, password, fullName string) error {
 	}
 
 	_, err = u.userRepo.Create(newUser)
+	if err != nil {
+		var pqErr *pq.Error
+		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
+			return ErrEmailAlreadyExists
+		}
+	}
+
 	return err
 }
 

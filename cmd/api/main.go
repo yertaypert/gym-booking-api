@@ -38,8 +38,8 @@ func main() {
 	mux.Handle("/me", middleware.AuthMiddleware(http.HandlerFunc(authHandler.Me)))
 
 	// Run server
-	log.Println("🚀 Server running on :8080")
-	err = http.ListenAndServe(":8080", mux)
+	log.Printf("Server running on %s", cfg.ServerPort)
+	err = http.ListenAndServe(cfg.ServerPort, mux)
 	if err != nil {
 		log.Fatal(err)
 	}

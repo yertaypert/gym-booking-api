@@ -38,9 +38,9 @@ func (r *UserRepository) GetByEmail(email string) (*domain.User, error) {
 
 func (r *UserRepository) GetByID(id int) (*domain.User, error) {
 	u := &domain.User{}
-	query := `SELECT id, email, full_name, role, balance FROM users WHERE id = $1`
+	query := `SELECT id, email, full_name, role, balance, created_at FROM users WHERE id = $1`
 
-	err := r.db.QueryRow(query, id).Scan(&u.ID, &u.Email, &u.FullName, &u.Role, &u.Balance)
+	err := r.db.QueryRow(query, id).Scan(&u.ID, &u.Email, &u.FullName, &u.Role, &u.Balance, &u.CreatedAt)
 	if err != nil {
 		return nil, err
 	}

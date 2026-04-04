@@ -43,7 +43,12 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	err = h.usecase.Register(req.Email, req.Password, req.FullName)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		if err == usecase.ErrEmailAlreadyExists {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
+
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -80,21 +85,19 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
-	// 1. Get user ID from middleware context
+
 	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
 	if !ok {
 		http.Error(w, "invalid user context", http.StatusUnauthorized)
 		return
 	}
 
-	// 2. Call usecase
 	user, err := h.usecase.Me(userID)
 	if err != nil {
 		http.Error(w, "user not found", http.StatusNotFound)
 		return
 	}
 
-	// 3. Return JSON
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)
 }

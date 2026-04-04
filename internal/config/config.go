@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strings"
 	"time"
 )
 
@@ -24,7 +25,7 @@ func Load() *Config {
 		DBPassword: getEnv("DB_PASSWORD", "password"),
 		DBName:     getEnv("DB_NAME", "gym_booking"),
 		JWTSecret:  getEnv("JWT_SECRET", "super-secret-change-me"),
-		ServerPort: getEnv("SERVER_PORT", ":8080"),
+		ServerPort: normalizeServerPort(getEnv("SERVER_PORT", ":8080")),
 		JWTTTL:     24 * time.Hour,
 	}
 }
@@ -34,4 +35,12 @@ func getEnv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func normalizeServerPort(port string) string {
+	if strings.Contains(port, ":") {
+		return port
+	}
+
+	return ":" + port
 }
