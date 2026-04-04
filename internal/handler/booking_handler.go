@@ -2,24 +2,22 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
+	"github.com/yertaypert/gym-booking-api/internal/domain"
+	"github.com/yertaypert/gym-booking-api/internal/middleware"
 	"github.com/yertaypert/gym-booking-api/internal/usecase"
 )
 
 type BookingHandler struct {
-	bookingUsecase *usecase.BookingUsecase // ← changed
+	bookingUsecase *usecase.BookingUsecase
 }
 
-func NewBookingHandler(bookingUsecase *usecase.BookingUsecase) *BookingHandler { // ← changed
+func NewBookingHandler(bookingUsecase *usecase.BookingUsecase) *BookingHandler {
 	return &BookingHandler{
 		bookingUsecase: bookingUsecase,
 	}
-}
-
-type CreateBookingRequest struct {
-	UserID    int `json:"user_id"`
-	SessionID int `json:"session_id"`
 }
 
 type CreateBookingResponse struct {
@@ -28,18 +26,19 @@ type CreateBookingResponse struct {
 }
 
 func (h *BookingHandler) CreateBooking(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	var req CreateBookingRequest
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
+	if !ok {
+		http.Error(w, "invalid user context", http.StatusUnauthorized)
 		return
 	}
 
-	bookingID, err := h.bookingUsecase.CreateBooking(r.Context(), req.UserID, req.SessionID)
+	sessionID, err := parsePathID(r, "sessionId")
+	if err != nil {
+		http.Error(w, "invalid session id", http.StatusBadRequest)
+		return
+	}
+
+	bookingID, err := h.bookingUsecase.CreateBooking(r.Context(), userID, sessionID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -50,13 +49,9 @@ func (h *BookingHandler) CreateBooking(w http.ResponseWriter, r *http.Request) {
 
 	response := CreateBookingResponse{
 		BookingID: bookingID,
-		Message:   "Booking Created Successfully",
+		Message:   "Booking created successfully",
 	}
 	_ = json.NewEncoder(w).Encode(response)
-}
-
-type CancelBookingRequest struct {
-	BookingID int `json:"booking_id"`
 }
 
 type CancelBookingResponse struct {
@@ -64,27 +59,41 @@ type CancelBookingResponse struct {
 }
 
 func (h *BookingHandler) CancelBooking(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	var req CancelBookingRequest
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
+	if !ok {
+		http.Error(w, "invalid user context", http.StatusUnauthorized)
 		return
 	}
 
-	err = h.bookingUsecase.CancelBooking(r.Context(), req.BookingID)
+	role, ok := r.Context().Value(middleware.UserRoleKey).(domain.UserRole)
+	if !ok {
+		http.Error(w, "invalid user role", http.StatusUnauthorized)
+		return
+	}
+
+	bookingID, err := parsePathID(r, "bookingId")
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "invalid booking id", http.StatusBadRequest)
+		return
+	}
+
+	err = h.bookingUsecase.CancelBooking(r.Context(), userID, bookingID, role == domain.RoleAdmin)
+	if err != nil {
+		switch {
+		case errors.Is(err, usecase.ErrBookingNotFound):
+			http.Error(w, err.Error(), http.StatusNotFound)
+		case errors.Is(err, usecase.ErrBookingForbidden):
+			http.Error(w, err.Error(), http.StatusForbidden)
+		default:
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		}
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	response := CancelBookingResponse{
-		Message: "Booking Cancelled Successfully",
+		Message: "Booking cancelled successfully",
 	}
 
 	_ = json.NewEncoder(w).Encode(response)

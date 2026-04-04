@@ -15,33 +15,38 @@ import (
 )
 
 func main() {
-	// Conf
 	err := godotenv.Load()
 	if err != nil {
 		log.Println("No .env file found")
 	}
 
 	cfg := config.Load()
-
 	db := database.NewDB(cfg)
 
-	// Init layers
 	userRepo := repository.NewUserRepository(db)
 	gymRepo := repository.NewGymRepository(db)
+	bookingRepo := repository.NewBookingRepository(db)
+	walletRepo := repository.NewWalletRepository(db)
+	sessionRepo := repository.NewSessionRepository(db)
+
 	authUsecase := usecase.NewAuthUsecase(userRepo)
 	gymUsecase := usecase.NewGymUsecase(gymRepo)
+	bookingUsecase := usecase.NewBookingUsecase(db, *bookingRepo, *walletRepo, *userRepo, sessionRepo)
+
 	authHandler := handler.NewAuthHandler(authUsecase)
 	gymHandler := handler.NewGymHandler(gymUsecase)
+	bookingHandler := handler.NewBookingHandler(bookingUsecase)
 
-	// Setup routes
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/register", authHandler.Register)
 	mux.HandleFunc("/login", authHandler.Login)
+
 	mux.HandleFunc("GET /gyms", gymHandler.ListGyms)
 	mux.HandleFunc("GET /gyms/{id}", gymHandler.GetGym)
 	mux.HandleFunc("GET /gyms/{id}/classes", gymHandler.ListGymClasses)
 	mux.HandleFunc("GET /gyms/{gymId}/classes/{classId}/sessions", gymHandler.ListClassSessions)
+
 	mux.Handle(
 		"POST /gyms",
 		middleware.AuthMiddleware(
@@ -60,6 +65,14 @@ func main() {
 			middleware.RequireRoles(domain.RoleAdmin)(http.HandlerFunc(gymHandler.CreateSession)),
 		),
 	)
+	mux.Handle(
+		"POST /sessions/{sessionId}/bookings",
+		middleware.AuthMiddleware(http.HandlerFunc(bookingHandler.CreateBooking)),
+	)
+	mux.Handle(
+		"POST /bookings/{bookingId}/cancel",
+		middleware.AuthMiddleware(http.HandlerFunc(bookingHandler.CancelBooking)),
+	)
 
 	mux.Handle("/me", middleware.AuthMiddleware(http.HandlerFunc(authHandler.Me)))
 	mux.Handle(
@@ -69,7 +82,6 @@ func main() {
 		),
 	)
 
-	// Run server
 	log.Printf("Server running on %s", cfg.ServerPort)
 	err = http.ListenAndServe(cfg.ServerPort, mux)
 	if err != nil {

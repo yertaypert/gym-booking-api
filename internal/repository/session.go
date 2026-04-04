@@ -15,15 +15,17 @@ type sqlSessionRepository struct {
 func NewSessionRepository(db *sql.DB) SessionRepository {
 	return &sqlSessionRepository{db: db}
 }
+
 func (r *sqlSessionRepository) GetByID(ctx context.Context, sessionID int) (*domain.Session, error) {
-	query := `SELECT id, class_id, start_time, available_slots, price, status
-              FROM sessions
+	query := `SELECT id, class_id, start_time, end_time, available_slots, price, status
+              FROM class_sessions
               WHERE id = $1`
 	var session domain.Session
 	err := r.db.QueryRowContext(ctx, query, sessionID).Scan(
 		&session.ID,
 		&session.ClassID,
 		&session.StartTime,
+		&session.EndTime,
 		&session.AvailableSlots,
 		&session.Price,
 		&session.Status,
@@ -33,8 +35,9 @@ func (r *sqlSessionRepository) GetByID(ctx context.Context, sessionID int) (*dom
 	}
 	return &session, nil
 }
+
 func (r *sqlSessionRepository) DecreaseAvailableSlots(ctx context.Context, tx *sql.Tx, sessionID int) error {
-	query := `UPDATE sessions SET available_slots = available_slots - 1
+	query := `UPDATE class_sessions SET available_slots = available_slots - 1
               WHERE id = $1 AND available_slots > 0`
 	result, err := tx.ExecContext(ctx, query, sessionID)
 	if err != nil {
@@ -49,9 +52,10 @@ func (r *sqlSessionRepository) DecreaseAvailableSlots(ctx context.Context, tx *s
 	}
 	return nil
 }
+
 func (r *sqlSessionRepository) IncreaseAvailableSlots(ctx context.Context, tx *sql.Tx, sessionID int) error {
-	query := `UPDATE sessions SET available_slots = available_slots + 1
-              WHERE id = $1 AND available_slots > 0`
+	query := `UPDATE class_sessions SET available_slots = available_slots + 1
+              WHERE id = $1`
 	_, err := tx.ExecContext(ctx, query, sessionID)
 	return err
 }

@@ -3,7 +3,8 @@ package domain
 type TransactionType string
 
 const (
-	TransactionTypeDeposit TransactionType = "deposit"
-	TransactionTypeBooking TransactionType = "booking"
+	TransactionTypeTopUp   TransactionType = "top_up"
+	TransactionTypeFreeze  TransactionType = "freeze"
+	TransactionTypePayment TransactionType = "payment"
 	TransactionTypeRefund  TransactionType = "refund"
 )

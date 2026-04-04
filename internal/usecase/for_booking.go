@@ -9,6 +9,9 @@ import (
 	"github.com/yertaypert/gym-booking-api/internal/repository"
 )
 
+var ErrBookingNotFound = errors.New("booking not found")
+var ErrBookingForbidden = errors.New("booking does not belong to user")
+
 type BookingUsecase struct {
 	db          *sql.DB
 	bookingRepo repository.BookingRepository
@@ -34,7 +37,6 @@ func NewBookingUsecase(
 }
 
 func (u *BookingUsecase) CreateBooking(ctx context.Context, userID, sessionID int) (int, error) {
-	// 1. Fetch outside tx (best-effort check)
 	user, err := u.userRepo.GetByID(userID)
 	if err != nil {
 		return 0, err
@@ -74,20 +76,27 @@ func (u *BookingUsecase) CreateBooking(ctx context.Context, userID, sessionID in
 		return 0, err
 	}
 
-	if err = u.walletRepo.CreateTransaction(tx, userID, bookingID, -session.Price, string(domain.TransactionTypeBooking)); err != nil {
+	if err = u.walletRepo.CreateTransaction(tx, userID, bookingID, -session.Price, string(domain.TransactionTypePayment)); err != nil {
 		return 0, err
 	}
 
 	if err = tx.Commit(); err != nil {
 		return 0, err
 	}
+
 	return bookingID, nil
 }
 
-func (u *BookingUsecase) CancelBooking(ctx context.Context, bookingID int) error {
+func (u *BookingUsecase) CancelBooking(ctx context.Context, requesterID, bookingID int, isAdmin bool) error {
 	booking, err := u.bookingRepo.GetByID(ctx, bookingID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrBookingNotFound
+		}
 		return err
+	}
+	if booking.UserID != requesterID && !isAdmin {
+		return ErrBookingForbidden
 	}
 	if booking.Status == "cancelled" {
 		return errors.New("booking already cancelled")
