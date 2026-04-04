@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/yertaypert/gym-booking-api/internal/auth"
+	"github.com/yertaypert/gym-booking-api/internal/domain"
 )
 
 type contextKey string
@@ -34,7 +35,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		}
 
 		ctx := context.WithValue(r.Context(), UserIDKey, claims.UserID)
-		ctx = context.WithValue(ctx, UserRoleKey, claims.Role)
+		ctx = context.WithValue(ctx, UserRoleKey, domain.UserRole(claims.Role))
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})

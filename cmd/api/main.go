@@ -6,6 +6,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/yertaypert/gym-booking-api/internal/config"
+	"github.com/yertaypert/gym-booking-api/internal/domain"
 	"github.com/yertaypert/gym-booking-api/internal/handler"
 	"github.com/yertaypert/gym-booking-api/internal/infrastructure/database"
 	"github.com/yertaypert/gym-booking-api/internal/middleware"
@@ -36,6 +37,12 @@ func main() {
 	mux.HandleFunc("/login", authHandler.Login)
 
 	mux.Handle("/me", middleware.AuthMiddleware(http.HandlerFunc(authHandler.Me)))
+	mux.Handle(
+		"/admin/me",
+		middleware.AuthMiddleware(
+			middleware.RequireRoles(domain.RoleAdmin)(http.HandlerFunc(authHandler.Me)),
+		),
+	)
 
 	// Run server
 	log.Printf("Server running on %s", cfg.ServerPort)
