@@ -21,12 +21,12 @@ type Booking struct {
 }
 
 type Transaction struct {
-	ID        int       `json:"id"`
-	UserID    int       `json:"user_id"`
-	BookingID *int      `json:"booking_id,omitempty"`
-	Amount    float64   `json:"amount"`
-	Type      string    `json:"type"`
-	CreatedAt time.Time `json:"created_at"`
+	ID        int             `json:"id"`
+	UserID    int             `json:"user_id"`
+	BookingID *int            `json:"booking_id,omitempty"`
+	Amount    float64         `json:"amount"`
+	Type      TransactionType `json:"type"`
+	CreatedAt time.Time       `json:"created_at"`
 }
 
 type Session struct {

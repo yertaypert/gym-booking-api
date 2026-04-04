@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 	"database/sql"
+
+	"github.com/yertaypert/gym-booking-api/internal/domain"
 )
 
 type sqlBookingRepository struct {
@@ -19,4 +21,25 @@ func (r *sqlBookingRepository) Create(ctx context.Context, tx *sql.Tx, userID, s
 
 	err := tx.QueryRowContext(ctx, query, userID, sessionID).Scan(&id)
 	return id, err
+}
+func (r *sqlBookingRepository) UpdateStatus(ctx context.Context, tx *sql.Tx, bookingID int, status string) error {
+	query := `UPDATE bookings SET status = $1 WHERE id = $2`
+	_, err := tx.ExecContext(ctx, query, status, bookingID)
+	return err
+}
+func (r *sqlBookingRepository) GetByID(ctx context.Context, bookingID int) (*domain.Booking, error) {
+	query := `SELECT id, user_id, session_id, status, created_at FROM bookings WHERE id = $1`
+	var booking domain.Booking
+
+	err := r.db.QueryRowContext(ctx, query, bookingID).Scan(
+		&booking.ID,
+		&booking.UserID,
+		&booking.SessionID,
+		&booking.Status,
+		&booking.CreatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &booking, nil
 }

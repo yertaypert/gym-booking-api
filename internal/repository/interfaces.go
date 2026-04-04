@@ -8,7 +8,9 @@ import (
 )
 
 type BookingRepository interface {
+	GetByID(ctx context.Context, bookingID int) (*domain.Booking, error)
 	Create(ctx context.Context, tx *sql.Tx, userID, sessionID int) (int, error)
+	UpdateStatus(ctx context.Context, tx *sql.Tx, bookingID int, status string) error
 }
 
 type WalletRepository interface { // or rename to TransactionRepository later
@@ -19,4 +21,10 @@ type WalletRepository interface { // or rename to TransactionRepository later
 type UserRepository interface {
 	GetByID(ctx context.Context, id int) (*domain.User, error)
 	// ... other methods later
+}
+
+type SessionRepository interface {
+	GetByID(ctx context.Context, id int) (*domain.Session, error)
+	DecreaseAvailableSlots(ctx context.Context, tx *sql.Tx, sessionID int) error
+	IncreaseAvailableSlots(ctx context.Context, tx *sql.Tx, sessionID int) error
 }
