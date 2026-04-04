@@ -9,7 +9,7 @@ import (
 	"github.com/yertaypert/gym-booking-api/internal/repository"
 )
 
-type ForBooking struct {
+type BookingUsecase struct {
 	db          *sql.DB
 	bookingRepo repository.BookingRepository
 	walletRepo  repository.WalletRepository
@@ -23,8 +23,8 @@ func NewBookingUsecase(
 	walletRepo repository.WalletRepository,
 	userRepo repository.UserRepository,
 	sessionRepo repository.SessionRepository,
-) *ForBooking {
-	return &ForBooking{
+) *BookingUsecase {
+	return &BookingUsecase{
 		db:          db,
 		bookingRepo: bookingRepo,
 		walletRepo:  walletRepo,
@@ -32,99 +32,93 @@ func NewBookingUsecase(
 		sessionRepo: sessionRepo,
 	}
 }
-func (u *ForBooking) CreateBooking(ctx context.Context, userID, sessionID int) (int, error) {
-	user, err := u.userRepo.GetByID(ctx, userID)
+
+func (u *BookingUsecase) CreateBooking(ctx context.Context, userID, sessionID int) (int, error) {
+	// 1. Fetch outside tx (best-effort check)
+	user, err := u.userRepo.GetByID(userID)
+	if err != nil {
+		return 0, err
+	}
 	session, err := u.sessionRepo.GetByID(ctx, sessionID)
 	if err != nil {
 		return 0, err
 	}
+
 	if session.AvailableSlots <= 0 {
-		return 0, errors.New("No available slots")
+		return 0, errors.New("no available slots")
 	}
 	if user.Balance < session.Price {
-		return 0, errors.New("Payment failed")
+		return 0, errors.New("insufficient balance")
 	}
+
 	tx, err := u.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
 	}
 	defer tx.Rollback()
 
-	bookingID, err := u.bookingRepo.Create(ctx, tx, userID, sessionID)
+	bookingID, err := u.bookingRepo.Create(tx, userID, sessionID)
 	if err != nil {
 		return 0, err
 	}
-	err = u.walletRepo.UpdateBalance(ctx, tx, userID, -session.Price)
-	if err != nil {
+
+	if err = u.walletRepo.UpdateBalance(tx, userID, -session.Price); err != nil {
 		return 0, err
 	}
-	err = u.sessionRepo.DecreaseAvailableSlots(ctx, tx, sessionID)
-	if err != nil {
+
+	if err = u.sessionRepo.DecreaseAvailableSlots(ctx, tx, sessionID); err != nil {
 		return 0, err
 	}
-	err = u.bookingRepo.UpdateStatus(ctx, tx, bookingID, "confirmed") // если оплата удалась, меняем pending на confirmed
-	if err != nil {
+
+	if err = u.bookingRepo.UpdateStatus(ctx, tx, bookingID, "confirmed"); err != nil {
 		return 0, err
 	}
-	err = u.walletRepo.CreateTransaction(
-		ctx,
-		tx,
-		userID,
-		&bookingID,
-		-session.Price,
-		domain.TransactionTypeBooking,
-	)
-	if err != nil {
+
+	if err = u.walletRepo.CreateTransaction(tx, userID, bookingID, -session.Price, string(domain.TransactionTypeBooking)); err != nil {
 		return 0, err
 	}
-	if err := tx.Commit(); err != nil {
+
+	if err = tx.Commit(); err != nil {
 		return 0, err
 	}
 	return bookingID, nil
 }
-func (u *ForBooking) CancelBooking(ctx context.Context, bookingID int) error {
+
+func (u *BookingUsecase) CancelBooking(ctx context.Context, bookingID int) error {
 	booking, err := u.bookingRepo.GetByID(ctx, bookingID)
 	if err != nil {
 		return err
 	}
 	if booking.Status == "cancelled" {
-		return errors.New("Booking already cancelled")
+		return errors.New("booking already cancelled")
 	}
+
 	session, err := u.sessionRepo.GetByID(ctx, booking.SessionID)
 	if err != nil {
 		return err
 	}
+
 	tx, err := u.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	err = u.bookingRepo.UpdateStatus(ctx, tx, bookingID, "cancelled")
-	if err != nil {
+	if err = u.bookingRepo.UpdateStatus(ctx, tx, bookingID, "cancelled"); err != nil {
 		return err
 	}
 
-	err = u.walletRepo.UpdateBalance(ctx, tx, booking.UserID, session.Price)
-	if err != nil {
+	if err = u.walletRepo.UpdateBalance(tx, booking.UserID, session.Price); err != nil {
 		return err
 	}
 
-	err = u.walletRepo.CreateTransaction(
-		ctx,
-		tx,
-		booking.UserID,
-		&bookingID,
-		session.Price,
-		domain.TransactionTypeRefund,
-	)
-	if err != nil {
+	if err = u.walletRepo.CreateTransaction(tx, booking.UserID, bookingID, session.Price, string(domain.TransactionTypeRefund)); err != nil {
 		return err
 	}
 
-	err = u.sessionRepo.IncreaseAvailableSlots(ctx, tx, booking.SessionID)
-	if err != nil {
+	if err = u.sessionRepo.IncreaseAvailableSlots(ctx, tx, booking.SessionID); err != nil {
 		return err
 	}
+
 	return tx.Commit()
 }

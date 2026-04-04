@@ -24,7 +24,7 @@ func (u *TransactionUsecase) CreateTransaction(userID int, amount float64, txTyp
 	tx := &domain.Transaction{
 		UserID:    userID,
 		Amount:    amount,
-		Type:      txType,
+		Type:      domain.TransactionType(txType),
 		CreatedAt: time.Now(),
 	}
 

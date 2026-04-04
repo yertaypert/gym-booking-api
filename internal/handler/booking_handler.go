@@ -8,10 +8,10 @@ import (
 )
 
 type BookingHandler struct {
-	bookingUsecase *usecase.ForBooking
+	bookingUsecase *usecase.BookingUsecase // ← changed
 }
 
-func NewBookingHandler(bookingUsecase *usecase.ForBooking) *BookingHandler {
+func NewBookingHandler(bookingUsecase *usecase.BookingUsecase) *BookingHandler { // ← changed
 	return &BookingHandler{
 		bookingUsecase: bookingUsecase,
 	}
@@ -21,6 +21,7 @@ type CreateBookingRequest struct {
 	UserID    int `json:"user_id"`
 	SessionID int `json:"session_id"`
 }
+
 type CreateBookingResponse struct {
 	BookingID int    `json:"booking_id"`
 	Message   string `json:"message"`
@@ -37,11 +38,13 @@ func (h *BookingHandler) CreateBooking(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
+
 	bookingID, err := h.bookingUsecase.CreateBooking(r.Context(), req.UserID, req.SessionID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 
@@ -55,6 +58,7 @@ func (h *BookingHandler) CreateBooking(w http.ResponseWriter, r *http.Request) {
 type CancelBookingRequest struct {
 	BookingID int `json:"booking_id"`
 }
+
 type CancelBookingResponse struct {
 	Message string `json:"message"`
 }
@@ -70,11 +74,13 @@ func (h *BookingHandler) CancelBooking(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
+
 	err = h.bookingUsecase.CancelBooking(r.Context(), req.BookingID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	response := CancelBookingResponse{
