@@ -32,7 +32,7 @@ func NewBookingUsecase(
 		sessionRepo: sessionRepo,
 	}
 }
-func (u *ForBooking) CreateBooking(ctx context.Context, userID, sessionID int, price float64) (int, error) {
+func (u *ForBooking) CreateBooking(ctx context.Context, userID, sessionID int) (int, error) {
 	user, err := u.userRepo.GetByID(ctx, userID)
 	session, err := u.sessionRepo.GetByID(ctx, sessionID)
 	if err != nil {
@@ -41,7 +41,7 @@ func (u *ForBooking) CreateBooking(ctx context.Context, userID, sessionID int, p
 	if session.AvailableSlots <= 0 {
 		return 0, errors.New("No available slots")
 	}
-	if user.Balance < price {
+	if user.Balance < session.Price {
 		return 0, errors.New("Payment failed")
 	}
 	tx, err := u.db.BeginTx(ctx, nil)
@@ -54,7 +54,7 @@ func (u *ForBooking) CreateBooking(ctx context.Context, userID, sessionID int, p
 	if err != nil {
 		return 0, err
 	}
-	err = u.walletRepo.UpdateBalance(ctx, tx, userID, -price)
+	err = u.walletRepo.UpdateBalance(ctx, tx, userID, -session.Price)
 	if err != nil {
 		return 0, err
 	}
@@ -71,7 +71,7 @@ func (u *ForBooking) CreateBooking(ctx context.Context, userID, sessionID int, p
 		tx,
 		userID,
 		&bookingID,
-		-price,
+		-session.Price,
 		domain.TransactionTypeBooking,
 	)
 	if err != nil {
