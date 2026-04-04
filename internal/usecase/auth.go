@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"errors"
+
 	"github.com/yertaypert/gym-booking-api/internal/auth"
 	"github.com/yertaypert/gym-booking-api/internal/domain"
 	"github.com/yertaypert/gym-booking-api/internal/repository"
@@ -54,4 +55,12 @@ func (u *AuthUsecase) Login(email, password string) (string, error) {
 	}
 
 	return token, nil
+}
+
+func (u *AuthUsecase) Me(userID int) (*domain.User, error) {
+	user, err := u.userRepo.GetByID(userID)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
 }
