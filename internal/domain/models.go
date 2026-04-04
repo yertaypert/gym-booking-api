@@ -12,21 +12,21 @@ import "time"
 //	CreatedAt    time.Time `json:"created_at"`
 //}
 
-type Booking struct {
-	ID        int       `json:"id"`
-	UserID    int       `json:"user_id"`
-	SessionID int       `json:"session_id"`
-	Status    string    `json:"status"`
-	CreatedAt time.Time `json:"created_at"`
-}
+//type Booking struct {
+//	ID        int       `json:"id"`
+//	UserID    int       `json:"user_id"`
+//	SessionID int       `json:"session_id"`
+//	Status    string    `json:"status"`
+//	CreatedAt time.Time `json:"created_at"`
+//}
 
 type Transaction struct {
-	ID        int       `json:"id"`
-	UserID    int       `json:"user_id"`
-	BookingID *int      `json:"booking_id,omitempty"`
-	Amount    float64   `json:"amount"`
-	Type      string    `json:"type"`
-	CreatedAt time.Time `json:"created_at"`
+	ID        int             `json:"id"`
+	UserID    int             `json:"user_id"`
+	BookingID *int            `json:"booking_id,omitempty"`
+	Amount    float64         `json:"amount"`
+	Type      TransactionType `json:"type"`
+	CreatedAt time.Time       `json:"created_at"`
 }
 
 type Session struct {
