@@ -1,11 +1,20 @@
-# IDEs
+# IDEs & OS Junk
 .idea/
 .vscode/
+*.swp
+*.swo
+.DS_Store
+Microsoft/
+out/
 
 # Binaries
 bin/
 *.exe
 *.out
+
+# GO Specific
+.gocache/
+.gopath/
 
 # GO dependencies
 vendor/
@@ -15,3 +24,5 @@ vendor/
 
 # Logging
 *.log
+logs/
+temp/
