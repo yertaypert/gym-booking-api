@@ -12,9 +12,12 @@ import (
 	"github.com/yertaypert/gym-booking-api/internal/middleware"
 	"github.com/yertaypert/gym-booking-api/internal/repository"
 	"github.com/yertaypert/gym-booking-api/internal/usecase"
+	"github.com/yertaypert/gym-booking-api/pkg/logger"
 )
 
 func main() {
+	globalLogger := logger.SetupLogger()
+
 	err := godotenv.Load()
 	if err != nil {
 		log.Println("No .env file found")
@@ -85,9 +88,12 @@ func main() {
 		),
 	)
 
-	log.Printf("Server running on %s", cfg.ServerPort)
-	err = http.ListenAndServe(cfg.ServerPort, mux)
+	loggedMux := middleware.RequestLogger(mux.ServeHTTP)
+
+	globalLogger.Info("Server is starting", "port", cfg.ServerPort)
+
+	err = http.ListenAndServe(cfg.ServerPort, loggedMux)
 	if err != nil {
-		log.Fatal(err)
+		globalLogger.Error("Server crashed", "error", err.Error())
 	}
 }
