@@ -19,10 +19,10 @@ var ErrInvalidSessionTime = errors.New("end_time must be after start_time")
 var ErrInvalidSessionPrice = errors.New("price must be greater than 0")
 
 type GymUsecase struct {
-	gymRepo *repository.GymRepository
+	gymRepo GymRepository
 }
 
-func NewGymUsecase(repo *repository.GymRepository) *GymUsecase {
+func NewGymUsecase(repo GymRepository) *GymUsecase {
 	return &GymUsecase{gymRepo: repo}
 }
 

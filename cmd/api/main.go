@@ -23,16 +23,19 @@ func main() {
 	cfg := config.Load()
 	db := database.NewDB(cfg)
 
+	// Repositories
 	userRepo := repository.NewUserRepository(db)
 	gymRepo := repository.NewGymRepository(db)
 	bookingRepo := repository.NewBookingRepository(db)
 	walletRepo := repository.NewWalletRepository(db)
 	sessionRepo := repository.NewSessionRepository(db)
 
+	// Usecases
 	authUsecase := usecase.NewAuthUsecase(userRepo)
 	gymUsecase := usecase.NewGymUsecase(gymRepo)
-	bookingUsecase := usecase.NewBookingUsecase(db, *bookingRepo, *walletRepo, *userRepo, sessionRepo)
+	bookingUsecase := usecase.NewBookingUsecase(db, bookingRepo, walletRepo, userRepo, sessionRepo)
 
+	// Handlers
 	authHandler := handler.NewAuthHandler(authUsecase)
 	gymHandler := handler.NewGymHandler(gymUsecase)
 	bookingHandler := handler.NewBookingHandler(bookingUsecase)

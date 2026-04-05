@@ -6,7 +6,6 @@ import (
 	"errors"
 
 	"github.com/yertaypert/gym-booking-api/internal/domain"
-	"github.com/yertaypert/gym-booking-api/internal/repository"
 )
 
 var ErrBookingNotFound = errors.New("booking not found")
@@ -14,18 +13,18 @@ var ErrBookingForbidden = errors.New("booking does not belong to user")
 
 type BookingUsecase struct {
 	db          *sql.DB
-	bookingRepo repository.BookingRepository
-	walletRepo  repository.WalletRepository
-	userRepo    repository.UserRepository
-	sessionRepo repository.SessionRepository
+	bookingRepo BookingRepository
+	walletRepo  WalletRepository
+	userRepo    UserRepository
+	sessionRepo SessionRepository
 }
 
 func NewBookingUsecase(
 	db *sql.DB,
-	bookingRepo repository.BookingRepository,
-	walletRepo repository.WalletRepository,
-	userRepo repository.UserRepository,
-	sessionRepo repository.SessionRepository,
+	bookingRepo BookingRepository,
+	walletRepo WalletRepository,
+	userRepo UserRepository,
+	sessionRepo SessionRepository,
 ) *BookingUsecase {
 	return &BookingUsecase{
 		db:          db,

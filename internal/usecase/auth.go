@@ -9,7 +9,6 @@ import (
 	"github.com/lib/pq"
 	"github.com/yertaypert/gym-booking-api/internal/auth"
 	"github.com/yertaypert/gym-booking-api/internal/domain"
-	"github.com/yertaypert/gym-booking-api/internal/repository"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -19,10 +18,10 @@ var ErrInvalidFullName = errors.New("full_name is required")
 var ErrWeakPassword = errors.New("password must be at least 8 characters and include uppercase, lowercase, and a digit")
 
 type AuthUsecase struct {
-	userRepo *repository.UserRepository
+	userRepo UserRepository
 }
 
-func NewAuthUsecase(repo *repository.UserRepository) *AuthUsecase {
+func NewAuthUsecase(repo UserRepository) *AuthUsecase {
 	return &AuthUsecase{userRepo: repo}
 }
 

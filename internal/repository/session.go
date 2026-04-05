@@ -12,7 +12,7 @@ type sqlSessionRepository struct {
 	db *sql.DB
 }
 
-func NewSessionRepository(db *sql.DB) SessionRepository {
+func NewSessionRepository(db *sql.DB) *sqlSessionRepository {
 	return &sqlSessionRepository{db: db}
 }
 

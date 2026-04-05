@@ -5,14 +5,13 @@ import (
 	"time"
 
 	"github.com/yertaypert/gym-booking-api/internal/domain"
-	"github.com/yertaypert/gym-booking-api/internal/repository"
 )
 
 type TransactionUsecase struct {
-	repo *repository.TransactionRepository
+	repo TransactionRepository
 }
 
-func NewTransactionUsecase(repo *repository.TransactionRepository) *TransactionUsecase {
+func NewTransactionUsecase(repo TransactionRepository) *TransactionUsecase {
 	return &TransactionUsecase{repo: repo}
 }
 
