@@ -1,6 +1,6 @@
 # 1GO
 
-1GO is a gym booking API is a Go service for managing gyms, classes, class sessions, and user bookings. It provides JWT-based authentication, role-based access for admin operations, automatic PostgreSQL migrations on startup, and a small seed utility for bootstrapping an admin account and demo data.
+1GO is a gym booking API, Go service for managing gyms, classes, class sessions, and user bookings. It provides JWT-based authentication, role-based access for admin operations, automatic PostgreSQL migrations on startup, and a small seed utility for bootstrapping an admin account and demo data.
 
 ## Features
 
