@@ -164,6 +164,20 @@ Booking cancellation is also transactional:
 
 ## API Endpoints
 
+| Category | Method | Endpoint | Description |
+| :--- | :--- | :--- | :--- |
+| **Auth** | `POST` | `/register` | Register a new user account |
+| **Auth** | `POST` | `/login` | Login and obtain JWT token |
+| **Auth** | `GET` | `/me` | Return the authenticated user |
+| **Auth** | `GET` | `/admin/me` | Return the authenticated admin user |
+| **Gyms** | `GET` | `/gyms` | Return all gyms |
+| **Gyms** | `GET` | `/gyms/{id}` | Return a single gym by ID |
+| **Gyms** | `POST` | `/gyms` | Create a gym (Admin required) |
+| **Classes** | `GET` | `/gyms/{id}/classes` | Return all classes for a gym |
+| **Classes** | `POST` | `/gyms/{id}/classes` | Create a class for a gym (Admin required) |
+| **Sessions** | `GET` | `/gyms/{gymId}/classes/{classId}/sessions` | Return all sessions for a class |
+| **Sessions** | `POST` | `/gyms/{gymId}/classes/{classId}/sessions` | Create a session for a class |
+
 Base URL:
 
 ```text
