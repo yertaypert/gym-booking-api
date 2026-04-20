@@ -91,3 +91,23 @@ func (r *ClassRepository) SearchSessionsByClassName(
 	}
 	return sessions, nil
 }
+
+func (r *ClassRepository) GetSessionWithDetails(ctx context.Context, sessionID int) (*SessionWithGym, error) {
+	query := `
+		SELECT s.id, s.class_id, s.start_time, s.end_time, s.available_slots, s.price, s.status,
+		       g.name as gym_name, g.address as gym_address, c.name as class_name
+		FROM class_sessions s
+		JOIN classes c ON s.class_id = c.id
+		JOIN gyms g ON c.gym_id = g.id
+		WHERE s.id = $1
+	`
+	var s SessionWithGym
+	err := r.db.QueryRowContext(ctx, query, sessionID).Scan(
+		&s.ID, &s.ClassID, &s.StartTime, &s.EndTime, &s.AvailableSlots, &s.Price, &s.Status,
+		&s.GymName, &s.GymAddress, &s.ClassName,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &s, nil
+}

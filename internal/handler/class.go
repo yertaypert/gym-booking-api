@@ -50,7 +50,6 @@ func (h *ClassHandler) SearchSessions(w http.ResponseWriter, r *http.Request) {
 		endTime = &t
 	}
 
-	// Handle "date" filter if provided
 	if dateStr := r.URL.Query().Get("date"); dateStr != "" {
 		d, err := time.Parse("2006-01-02", dateStr)
 		if err != nil {
@@ -58,7 +57,6 @@ func (h *ClassHandler) SearchSessions(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// If date is provided, it overrides or sets the range to that specific day
 		st := d
 		et := d.Add(24 * time.Hour).Add(-time.Second)
 		startTime = &st
@@ -73,4 +71,21 @@ func (h *ClassHandler) SearchSessions(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(sessions)
+}
+
+func (h *ClassHandler) GetSession(w http.ResponseWriter, r *http.Request) {
+	sessionID, err := parsePathID(r, "id")
+	if err != nil {
+		http.Error(w, "invalid session id", http.StatusBadRequest)
+		return
+	}
+
+	session, err := h.usecase.GetSession(r.Context(), sessionID)
+	if err != nil {
+		http.Error(w, "session not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(session)
 }

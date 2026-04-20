@@ -58,6 +58,7 @@ func main() {
 
 	mux.HandleFunc("GET /classes", classHandler.ListClasses)
 	mux.HandleFunc("GET /classes/{name}/sessions", classHandler.SearchSessions)
+	mux.HandleFunc("GET /sessions/{id}", classHandler.GetSession)
 
 	mux.Handle(
 		"POST /gyms",

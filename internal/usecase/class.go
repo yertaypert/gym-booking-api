@@ -26,3 +26,7 @@ func (u *ClassUsecase) SearchSessions(
 ) ([]repository.SessionWithGym, error) {
 	return u.classRepo.SearchSessionsByClassName(ctx, name, startTime, endTime)
 }
+
+func (u *ClassUsecase) GetSession(ctx context.Context, sessionID int) (*repository.SessionWithGym, error) {
+	return u.classRepo.GetSessionWithDetails(ctx, sessionID)
+}
