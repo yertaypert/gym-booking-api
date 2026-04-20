@@ -32,16 +32,19 @@ func main() {
 	bookingRepo := repository.NewBookingRepository(db)
 	walletRepo := repository.NewWalletRepository(db)
 	sessionRepo := repository.NewSessionRepository(db)
+	classRepo := repository.NewClassRepository(db)
 
 	// Usecases
 	authUsecase := usecase.NewAuthUsecase(userRepo)
 	gymUsecase := usecase.NewGymUsecase(gymRepo)
 	bookingUsecase := usecase.NewBookingUsecase(db, bookingRepo, walletRepo, userRepo, sessionRepo)
+	classUsecase := usecase.NewClassUsecase(classRepo)
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(authUsecase)
 	gymHandler := handler.NewGymHandler(gymUsecase)
 	bookingHandler := handler.NewBookingHandler(bookingUsecase)
+	classHandler := handler.NewClassHandler(classUsecase)
 
 	mux := http.NewServeMux()
 
@@ -52,6 +55,9 @@ func main() {
 	mux.HandleFunc("GET /gyms/{id}", gymHandler.GetGym)
 	mux.HandleFunc("GET /gyms/{id}/classes", gymHandler.ListGymClasses)
 	mux.HandleFunc("GET /gyms/{gymId}/classes/{classId}/sessions", gymHandler.ListClassSessions)
+
+	mux.HandleFunc("GET /classes", classHandler.ListClasses)
+	mux.HandleFunc("GET /classes/{name}/sessions", classHandler.SearchSessions)
 
 	mux.Handle(
 		"POST /gyms",
