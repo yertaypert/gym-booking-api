@@ -57,6 +57,7 @@ func main() {
 	mux.HandleFunc("GET /gyms/{gymId}/classes/{classId}/sessions", gymHandler.ListClassSessions)
 
 	mux.HandleFunc("GET /classes", classHandler.ListClasses)
+	mux.HandleFunc("GET /classes/{name}", classHandler.ListGymsByClass)
 	mux.HandleFunc("GET /classes/{name}/sessions", classHandler.SearchSessions)
 	mux.HandleFunc("GET /sessions/{id}", classHandler.GetSession)
 

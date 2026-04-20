@@ -27,6 +27,18 @@ func (h *ClassHandler) ListClasses(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(classes)
 }
 
+func (h *ClassHandler) ListGymsByClass(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	gyms, err := h.usecase.ListGymsByClassName(r.Context(), name)
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(gyms)
+}
+
 func (h *ClassHandler) SearchSessions(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
 

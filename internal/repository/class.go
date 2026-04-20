@@ -111,3 +111,34 @@ func (r *ClassRepository) GetSessionWithDetails(ctx context.Context, sessionID i
 	}
 	return &s, nil
 }
+
+type GymWithClass struct {
+	GymID      int    `json:"gym_id"`
+	GymName    string `json:"gym_name"`
+	GymAddress string `json:"gym_address"`
+	ClassID    int    `json:"class_id"`
+}
+
+func (r *ClassRepository) ListGymsByClassName(ctx context.Context, name string) ([]GymWithClass, error) {
+	query := `
+		SELECT g.id, g.name, g.address, c.id
+		FROM gyms g
+		JOIN classes c ON g.id = c.gym_id
+		WHERE c.name = $1
+	`
+	rows, err := r.db.QueryContext(ctx, query, name)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var gyms []GymWithClass
+	for rows.Next() {
+		var g GymWithClass
+		if err := rows.Scan(&g.GymID, &g.GymName, &g.GymAddress, &g.ClassID); err != nil {
+			return nil, err
+		}
+		gyms = append(gyms, g)
+	}
+	return gyms, nil
+}
