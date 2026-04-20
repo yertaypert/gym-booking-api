@@ -173,10 +173,16 @@ Booking cancellation is also transactional:
 | **Gyms** | `GET` | `/gyms` | Return all gyms |
 | **Gyms** | `GET` | `/gyms/{id}` | Return a single gym by ID |
 | **Gyms** | `POST` | `/gyms` | Create a gym (Admin required) |
-| **Classes** | `GET` | `/gyms/{id}/classes` | Return all classes for a gym |
+| **Classes** | `GET` | `/classes` | List all distinct class names |
+| **Classes** | `GET` | `/classes/{name}` | List all gyms offering a class by name |
+| **Classes** | `GET` | `/gyms/{id}/classes` | Return all classes for a specific gym |
 | **Classes** | `POST` | `/gyms/{id}/classes` | Create a class for a gym (Admin required) |
-| **Sessions** | `GET` | `/gyms/{gymId}/classes/{classId}/sessions` | Return all sessions for a class |
-| **Sessions** | `POST` | `/gyms/{gymId}/classes/{classId}/sessions` | Create a session for a class |
+| **Sessions** | `GET` | `/classes/{name}/sessions` | Search sessions by class name (supports `date`, `start_time`, `end_time` filters) |
+| **Sessions** | `GET` | `/sessions/{id}` | Return detailed info for a specific session |
+| **Sessions** | `GET` | `/gyms/{gymId}/classes/{classId}/sessions` | Return all sessions for a specific class in a gym |
+| **Sessions** | `POST` | `/gyms/{gymId}/classes/{classId}/sessions` | Create a session for a class (Admin required) |
+| **Bookings** | `POST` | `/sessions/{sessionId}/bookings` | Create a booking for a session |
+| **Bookings** | `POST` | `/bookings/{bookingId}/cancel` | Cancel an existing booking |
 
 Base URL:
 
