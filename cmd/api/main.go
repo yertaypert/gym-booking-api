@@ -37,7 +37,7 @@ func main() {
 	// Usecases
 	authUsecase := usecase.NewAuthUsecase(userRepo)
 	gymUsecase := usecase.NewGymUsecase(gymRepo)
-	bookingUsecase := usecase.NewBookingUsecase(db, bookingRepo, walletRepo, userRepo, sessionRepo)
+	bookingUsecase := usecase.NewBookingUsecase(db, bookingRepo, walletRepo, userRepo, sessionRepo, gymRepo)
 	classUsecase := usecase.NewClassUsecase(classRepo)
 
 	// Handlers
@@ -68,15 +68,21 @@ func main() {
 		),
 	)
 	mux.Handle(
+		"GET /my-gyms",
+		middleware.AuthMiddleware(
+			middleware.RequireRoles(domain.RoleAdmin, domain.RoleGymOwner)(http.HandlerFunc(gymHandler.ListMyGyms)),
+		),
+	)
+	mux.Handle(
 		"POST /gyms/{id}/classes",
 		middleware.AuthMiddleware(
-			middleware.RequireRoles(domain.RoleAdmin)(http.HandlerFunc(gymHandler.CreateClass)),
+			middleware.RequireRoles(domain.RoleAdmin, domain.RoleGymOwner)(http.HandlerFunc(gymHandler.CreateClass)),
 		),
 	)
 	mux.Handle(
 		"POST /gyms/{gymId}/classes/{classId}/sessions",
 		middleware.AuthMiddleware(
-			middleware.RequireRoles(domain.RoleAdmin)(http.HandlerFunc(gymHandler.CreateSession)),
+			middleware.RequireRoles(domain.RoleAdmin, domain.RoleGymOwner)(http.HandlerFunc(gymHandler.CreateSession)),
 		),
 	)
 	mux.Handle(

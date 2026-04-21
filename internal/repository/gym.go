@@ -30,7 +30,7 @@ type Session struct {
 }
 
 func (r *GymRepository) ListGyms() ([]domain.Gym, error) {
-	rows, err := r.db.Query(`SELECT id, name, address, description FROM gyms ORDER BY id`)
+	rows, err := r.db.Query(`SELECT id, owner_id, name, address, description FROM gyms ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +39,7 @@ func (r *GymRepository) ListGyms() ([]domain.Gym, error) {
 	var gyms []domain.Gym
 	for rows.Next() {
 		var gym domain.Gym
-		if err := rows.Scan(&gym.ID, &gym.Name, &gym.Address, &gym.Description); err != nil {
+		if err := rows.Scan(&gym.ID, &gym.OwnerID, &gym.Name, &gym.Address, &gym.Description); err != nil {
 			return nil, err
 		}
 		gyms = append(gyms, gym)
@@ -51,11 +51,12 @@ func (r *GymRepository) ListGyms() ([]domain.Gym, error) {
 func (r *GymRepository) CreateGym(gym domain.Gym) (*domain.Gym, error) {
 	created := &domain.Gym{}
 	err := r.db.QueryRow(
-		`INSERT INTO gyms (name, address, description) VALUES ($1, $2, $3) RETURNING id, name, address, description`,
+		`INSERT INTO gyms (owner_id, name, address, description) VALUES ($1, $2, $3, $4) RETURNING id, owner_id, name, address, description`,
+		gym.OwnerID,
 		gym.Name,
 		gym.Address,
 		gym.Description,
-	).Scan(&created.ID, &created.Name, &created.Address, &created.Description)
+	).Scan(&created.ID, &created.OwnerID, &created.Name, &created.Address, &created.Description)
 	if err != nil {
 		return nil, err
 	}
@@ -67,9 +68,9 @@ func (r *GymRepository) GetGymByID(id int) (*domain.Gym, error) {
 	var gym domain.Gym
 
 	err := r.db.QueryRow(
-		`SELECT id, name, address, description FROM gyms WHERE id = $1`,
+		`SELECT id, owner_id, name, address, description FROM gyms WHERE id = $1`,
 		id,
-	).Scan(&gym.ID, &gym.Name, &gym.Address, &gym.Description)
+	).Scan(&gym.ID, &gym.OwnerID, &gym.Name, &gym.Address, &gym.Description)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrGymNotFound
@@ -78,6 +79,25 @@ func (r *GymRepository) GetGymByID(id int) (*domain.Gym, error) {
 	}
 
 	return &gym, nil
+}
+
+func (r *GymRepository) ListGymsByOwnerID(ownerID int) ([]domain.Gym, error) {
+	rows, err := r.db.Query(`SELECT id, owner_id, name, address, description FROM gyms WHERE owner_id = $1 ORDER BY id`, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var gyms []domain.Gym
+	for rows.Next() {
+		var gym domain.Gym
+		if err := rows.Scan(&gym.ID, &gym.OwnerID, &gym.Name, &gym.Address, &gym.Description); err != nil {
+			return nil, err
+		}
+		gyms = append(gyms, gym)
+	}
+
+	return gyms, rows.Err()
 }
 
 func (r *GymRepository) ListClassesByGymID(gymID int) ([]domain.Class, error) {

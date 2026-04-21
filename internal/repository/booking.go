@@ -44,3 +44,29 @@ func (r *BookingRepository) GetByID(ctx context.Context, bookingID int) (*domain
 	}
 	return &booking, nil
 }
+
+func (r *BookingRepository) ListByGymID(ctx context.Context, gymID int) ([]domain.Booking, error) {
+	query := `
+		SELECT b.id, b.user_id, b.session_id, b.status, b.created_at
+		FROM bookings b
+		JOIN class_sessions s ON b.session_id = s.id
+		JOIN classes c ON s.class_id = c.id
+		WHERE c.gym_id = $1
+		ORDER BY b.created_at DESC
+	`
+	rows, err := r.db.QueryContext(ctx, query, gymID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var bookings []domain.Booking
+	for rows.Next() {
+		var b domain.Booking
+		if err := rows.Scan(&b.ID, &b.UserID, &b.SessionID, &b.Status, &b.CreatedAt); err != nil {
+			return nil, err
+		}
+		bookings = append(bookings, b)
+	}
+	return bookings, rows.Err()
+}

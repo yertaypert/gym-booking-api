@@ -17,6 +17,7 @@ var ErrInvalidClassName = errors.New("class name is required")
 var ErrInvalidMaxCapacity = errors.New("max_capacity must be greater than 0")
 var ErrInvalidSessionTime = errors.New("end_time must be after start_time")
 var ErrInvalidSessionPrice = errors.New("price must be greater than 0")
+var ErrNotGymOwner = errors.New("user is not the owner of this gym")
 
 type GymUsecase struct {
 	gymRepo GymRepository
@@ -28,6 +29,10 @@ func NewGymUsecase(repo GymRepository) *GymUsecase {
 
 func (u *GymUsecase) ListGyms() ([]domain.Gym, error) {
 	return u.gymRepo.ListGyms()
+}
+
+func (u *GymUsecase) ListGymsByOwner(ownerID int) ([]domain.Gym, error) {
+	return u.gymRepo.ListGymsByOwnerID(ownerID)
 }
 
 func (u *GymUsecase) GetGym(id int) (*domain.Gym, error) {
@@ -71,8 +76,9 @@ func (u *GymUsecase) ListClassSessions(gymID, classID int) ([]domain.Session, er
 	return sessions, nil
 }
 
-func (u *GymUsecase) CreateGym(name, address, description string) (*domain.Gym, error) {
+func (u *GymUsecase) CreateGym(ownerID int, name, address, description string) (*domain.Gym, error) {
 	gym := domain.Gym{
+		OwnerID:     ownerID,
 		Name:        strings.TrimSpace(name),
 		Address:     strings.TrimSpace(address),
 		Description: strings.TrimSpace(description),
@@ -85,7 +91,16 @@ func (u *GymUsecase) CreateGym(name, address, description string) (*domain.Gym, 
 	return u.gymRepo.CreateGym(gym)
 }
 
-func (u *GymUsecase) CreateClass(gymID int, name string, maxCapacity int) (*domain.Class, error) {
+func (u *GymUsecase) CreateClass(userID int, userRole domain.UserRole, gymID int, name string, maxCapacity int) (*domain.Class, error) {
+	gym, err := u.GetGym(gymID)
+	if err != nil {
+		return nil, err
+	}
+
+	if userRole != domain.RoleAdmin && gym.OwnerID != userID {
+		return nil, ErrNotGymOwner
+	}
+
 	class := domain.Class{
 		GymID:       gymID,
 		Name:        strings.TrimSpace(name),
@@ -110,7 +125,16 @@ func (u *GymUsecase) CreateClass(gymID int, name string, maxCapacity int) (*doma
 	return created, nil
 }
 
-func (u *GymUsecase) CreateSession(gymID, classID int, startTime, endTime time.Time, price float64) (*domain.Session, error) {
+func (u *GymUsecase) CreateSession(userID int, userRole domain.UserRole, gymID, classID int, startTime, endTime time.Time, price float64) (*domain.Session, error) {
+	gym, err := u.GetGym(gymID)
+	if err != nil {
+		return nil, err
+	}
+
+	if userRole != domain.RoleAdmin && gym.OwnerID != userID {
+		return nil, ErrNotGymOwner
+	}
+
 	if !endTime.After(startTime) {
 		return nil, ErrInvalidSessionTime
 	}
