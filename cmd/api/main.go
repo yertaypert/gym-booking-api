@@ -54,6 +54,10 @@ func main() {
 	mux.HandleFunc("GET /gyms/{gymId}/classes/{classId}/sessions", gymHandler.ListClassSessions)
 
 	mux.Handle(
+		"GET /me/bookings",
+		middleware.AuthMiddleware(http.HandlerFunc(bookingHandler.MyBookings)),
+	)
+	mux.Handle(
 		"POST /gyms",
 		middleware.AuthMiddleware(
 			middleware.RequireRoles(domain.RoleAdmin)(http.HandlerFunc(gymHandler.CreateGym)),

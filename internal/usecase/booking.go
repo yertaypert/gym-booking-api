@@ -130,3 +130,6 @@ func (u *BookingUsecase) CancelBooking(ctx context.Context, requesterID, booking
 
 	return tx.Commit()
 }
+func (u *BookingUsecase) GetUserBookings(ctx context.Context, userID int) ([]domain.Booking, error) {
+	return u.bookingRepo.GetByUserID(ctx, userID)
+}

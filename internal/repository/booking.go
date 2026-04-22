@@ -44,3 +44,30 @@ func (r *BookingRepository) GetByID(ctx context.Context, bookingID int) (*domain
 	}
 	return &booking, nil
 }
+func (r *BookingRepository) GetByUserID(ctx context.Context, userID int) ([]domain.Booking, error) {
+	query := `SELECT id, user_id, session_id, status, created_at FROM bookings WHERE user_id = $1 ORDER BY created_at DESC`
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var bookings []domain.Booking
+	for rows.Next() {
+		var b domain.Booking
+		err := rows.Scan(
+			&b.ID,
+			&b.UserID,
+			&b.SessionID,
+			&b.Status,
+			&b.CreatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		bookings = append(bookings, b)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return bookings, nil
+}
