@@ -10,9 +10,11 @@ import (
 )
 
 var ErrGymNotFound = errors.New("gym not found")
+var ErrGymAlreadyExists = errors.New("gym with this name already exists")
 var ErrClassNotFound = errors.New("class not found")
 var ErrClassDoesNotBelongToGym = errors.New("class does not belong to gym")
 var ErrInvalidGymName = errors.New("gym name is required")
+var ErrInvalidOwnerID = errors.New("owner_id is required")
 var ErrInvalidClassName = errors.New("class name is required")
 var ErrInvalidMaxCapacity = errors.New("max_capacity must be greater than 0")
 var ErrInvalidSessionTime = errors.New("end_time must be after start_time")
@@ -77,6 +79,10 @@ func (u *GymUsecase) ListClassSessions(gymID, classID int) ([]domain.Session, er
 }
 
 func (u *GymUsecase) CreateGym(ownerID int, name, address, description string) (*domain.Gym, error) {
+	if ownerID <= 0 {
+		return nil, ErrInvalidOwnerID
+	}
+
 	gym := domain.Gym{
 		OwnerID:     ownerID,
 		Name:        strings.TrimSpace(name),
@@ -88,7 +94,15 @@ func (u *GymUsecase) CreateGym(ownerID int, name, address, description string) (
 		return nil, ErrInvalidGymName
 	}
 
-	return u.gymRepo.CreateGym(gym)
+	created, err := u.gymRepo.CreateGym(gym)
+	if err != nil {
+		if errors.Is(err, repository.ErrGymAlreadyExists) {
+			return nil, ErrGymAlreadyExists
+		}
+		return nil, err
+	}
+
+	return created, nil
 }
 
 func (u *GymUsecase) CreateClass(userID int, userRole domain.UserRole, gymID int, name string, maxCapacity int) (*domain.Class, error) {

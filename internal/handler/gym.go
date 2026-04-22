@@ -142,12 +142,14 @@ func (h *GymHandler) CreateGym(w http.ResponseWriter, r *http.Request) {
 
 	gym, err := h.usecase.CreateGym(req.OwnerID, req.Name, req.Address, req.Description)
 	if err != nil {
-		if errors.Is(err, usecase.ErrInvalidGymName) {
+		switch {
+		case errors.Is(err, usecase.ErrInvalidGymName), errors.Is(err, usecase.ErrInvalidOwnerID):
 			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
+		case errors.Is(err, usecase.ErrGymAlreadyExists):
+			http.Error(w, err.Error(), http.StatusConflict)
+		default:
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 		}
-
-		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 

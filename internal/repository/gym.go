@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/lib/pq"
 	"github.com/yertaypert/gym-booking-api/internal/domain"
 )
 
@@ -13,6 +14,7 @@ type GymRepository struct {
 }
 
 var ErrGymNotFound = errors.New("gym not found")
+var ErrGymAlreadyExists = errors.New("gym already exists")
 var ErrClassNotFound = errors.New("class not found")
 var ErrClassDoesNotBelongToGym = errors.New("class does not belong to gym")
 
@@ -39,8 +41,12 @@ func (r *GymRepository) ListGyms() ([]domain.Gym, error) {
 	var gyms []domain.Gym
 	for rows.Next() {
 		var gym domain.Gym
-		if err := rows.Scan(&gym.ID, &gym.OwnerID, &gym.Name, &gym.Address, &gym.Description); err != nil {
+		var ownerID sql.NullInt64
+		if err := rows.Scan(&gym.ID, &ownerID, &gym.Name, &gym.Address, &gym.Description); err != nil {
 			return nil, err
+		}
+		if ownerID.Valid {
+			gym.OwnerID = int(ownerID.Int64)
 		}
 		gyms = append(gyms, gym)
 	}
@@ -50,15 +56,24 @@ func (r *GymRepository) ListGyms() ([]domain.Gym, error) {
 
 func (r *GymRepository) CreateGym(gym domain.Gym) (*domain.Gym, error) {
 	created := &domain.Gym{}
+	var ownerID sql.NullInt64
 	err := r.db.QueryRow(
 		`INSERT INTO gyms (owner_id, name, address, description) VALUES ($1, $2, $3, $4) RETURNING id, owner_id, name, address, description`,
 		gym.OwnerID,
 		gym.Name,
 		gym.Address,
 		gym.Description,
-	).Scan(&created.ID, &created.OwnerID, &created.Name, &created.Address, &created.Description)
+	).Scan(&created.ID, &ownerID, &created.Name, &created.Address, &created.Description)
 	if err != nil {
+		if pgErr, ok := err.(*pq.Error); ok {
+			if pgErr.Code == "23505" {
+				return nil, ErrGymAlreadyExists
+			}
+		}
 		return nil, err
+	}
+	if ownerID.Valid {
+		created.OwnerID = int(ownerID.Int64)
 	}
 
 	return created, nil
@@ -66,16 +81,20 @@ func (r *GymRepository) CreateGym(gym domain.Gym) (*domain.Gym, error) {
 
 func (r *GymRepository) GetGymByID(id int) (*domain.Gym, error) {
 	var gym domain.Gym
+	var ownerID sql.NullInt64
 
 	err := r.db.QueryRow(
 		`SELECT id, owner_id, name, address, description FROM gyms WHERE id = $1`,
 		id,
-	).Scan(&gym.ID, &gym.OwnerID, &gym.Name, &gym.Address, &gym.Description)
+	).Scan(&gym.ID, &ownerID, &gym.Name, &gym.Address, &gym.Description)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrGymNotFound
 		}
 		return nil, err
+	}
+	if ownerID.Valid {
+		gym.OwnerID = int(ownerID.Int64)
 	}
 
 	return &gym, nil
@@ -91,8 +110,12 @@ func (r *GymRepository) ListGymsByOwnerID(ownerID int) ([]domain.Gym, error) {
 	var gyms []domain.Gym
 	for rows.Next() {
 		var gym domain.Gym
-		if err := rows.Scan(&gym.ID, &gym.OwnerID, &gym.Name, &gym.Address, &gym.Description); err != nil {
+		var ownerID sql.NullInt64
+		if err := rows.Scan(&gym.ID, &ownerID, &gym.Name, &gym.Address, &gym.Description); err != nil {
 			return nil, err
+		}
+		if ownerID.Valid {
+			gym.OwnerID = int(ownerID.Int64)
 		}
 		gyms = append(gyms, gym)
 	}
