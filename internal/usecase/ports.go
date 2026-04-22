@@ -22,12 +22,14 @@ type GymRepository interface {
 	ListSessionsByGymAndClassID(gymID, classID int) ([]domain.Session, error)
 	GetClassByID(classID int) (*domain.Class, error)
 	CreateSession(gymID int, session domain.Session) (*domain.Session, error)
+	ListGymsByOwnerID(ownerID int) ([]domain.Gym, error)
 }
 
 type BookingRepository interface {
 	GetByID(ctx context.Context, bookingID int) (*domain.Booking, error)
 	Create(tx *sql.Tx, userID, sessionID int) (int, error)
 	UpdateStatus(ctx context.Context, tx *sql.Tx, bookingID int, status string) error
+	ListByGymID(ctx context.Context, gymID int) ([]domain.Booking, error)
 }
 
 type WalletRepository interface {
