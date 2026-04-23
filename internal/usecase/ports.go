@@ -28,6 +28,10 @@ type BookingRepository interface {
 	GetByID(ctx context.Context, bookingID int) (*domain.Booking, error)
 	Create(tx *sql.Tx, userID, sessionID int) (int, error)
 	UpdateStatus(ctx context.Context, tx *sql.Tx, bookingID int, status string) error
+	GetByUserID(ctx context.Context, userID int) ([]domain.BookingDetail, error)
+	GetBySessionID(ctx context.Context, sessionID int) ([]domain.BookingDetail, error)
+	ExistsByUserAndSession(ctx context.Context, userID, sessionID int) (bool, error)
+	MarkAttended(ctx context.Context, tx *sql.Tx, bookingID int) error
 }
 
 type WalletRepository interface {
