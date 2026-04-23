@@ -30,12 +30,17 @@ type BookingRepository interface {
 	GetByID(ctx context.Context, bookingID int) (*domain.Booking, error)
 	Create(tx *sql.Tx, userID, sessionID int) (int, error)
 	UpdateStatus(ctx context.Context, tx *sql.Tx, bookingID int, status string) error
+	GetByUserID(ctx context.Context, userID int) ([]domain.Booking, error)
+	GetByUserID(ctx context.Context, userID int) ([]domain.BookingDetail, error)
+	GetBySessionID(ctx context.Context, sessionID int) ([]domain.BookingDetail, error)
+	ExistsByUserAndSession(ctx context.Context, userID, sessionID int) (bool, error)
+	MarkAttended(ctx context.Context, tx *sql.Tx, bookingID int) error
 	ListByGymID(ctx context.Context, gymID int) ([]domain.Booking, error)
 }
 
 type WalletRepository interface {
 	UpdateBalance(tx *sql.Tx, userID int, amount float64) error
-	CreateTransaction(tx *sql.Tx, userID int, bookingID int, amount float64, txType string) error
+	CreateTransaction(tx *sql.Tx, userID int, bookingID *int, amount float64, txType string) error
 }
 
 type SessionRepository interface {
@@ -46,4 +51,5 @@ type SessionRepository interface {
 
 type TransactionRepository interface {
 	Create(transaction *domain.Transaction) error
+	GetByUserID(userID int) ([]domain.Transaction, error)
 }

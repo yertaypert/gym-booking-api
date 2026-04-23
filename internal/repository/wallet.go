@@ -18,7 +18,7 @@ func (r *WalletRepository) UpdateBalance(tx *sql.Tx, userID int, amount float64)
 	return err
 }
 
-func (r *WalletRepository) CreateTransaction(tx *sql.Tx, userID int, bookingID int, amount float64, txType string) error {
+func (r *WalletRepository) CreateTransaction(tx *sql.Tx, userID int, bookingID *int, amount float64, txType string) error {
 	query := `INSERT INTO transactions (user_id, booking_id, amount, type) VALUES ($1, $2, $3, $4)`
 	_, err := tx.Exec(query, userID, bookingID, amount, txType)
 	return err

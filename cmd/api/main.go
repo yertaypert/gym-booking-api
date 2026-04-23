@@ -33,18 +33,23 @@ func main() {
 	walletRepo := repository.NewWalletRepository(db)
 	sessionRepo := repository.NewSessionRepository(db)
 	classRepo := repository.NewClassRepository(db)
+	transactionRepo := repository.NewTransactionRepository(db)
 
 	// Usecases
 	authUsecase := usecase.NewAuthUsecase(userRepo)
 	gymUsecase := usecase.NewGymUsecase(gymRepo)
 	bookingUsecase := usecase.NewBookingUsecase(db, bookingRepo, walletRepo, userRepo, sessionRepo, gymRepo)
 	classUsecase := usecase.NewClassUsecase(classRepo)
+	transactionUsecase := usecase.NewTransactionUsecase(transactionRepo)
+	walletUsecase := usecase.NewWalletUsecase(db, walletRepo)
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(authUsecase)
 	gymHandler := handler.NewGymHandler(gymUsecase)
 	bookingHandler := handler.NewBookingHandler(bookingUsecase)
 	classHandler := handler.NewClassHandler(classUsecase)
+	transactionHandler := handler.NewTransactionHandler(transactionUsecase)
+	walletHandler := handler.NewWalletHandler(walletUsecase)
 
 	mux := http.NewServeMux()
 
@@ -61,6 +66,10 @@ func main() {
 	mux.HandleFunc("GET /classes/{name}/sessions", classHandler.SearchSessions)
 	mux.HandleFunc("GET /sessions/{id}", classHandler.GetSession)
 
+	mux.Handle(
+		"GET /me/bookings",
+		middleware.AuthMiddleware(http.HandlerFunc(bookingHandler.MyBookings)),
+	)
 	mux.Handle(
 		"POST /gyms",
 		middleware.AuthMiddleware(
@@ -104,6 +113,31 @@ func main() {
 		middleware.AuthMiddleware(
 			middleware.RequireRoles(domain.RoleAdmin, domain.RoleGymOwner)(http.HandlerFunc(gymHandler.AssignTrainer)),
 		),
+	// Mark a booking as attended — admin only
+	mux.Handle(
+		"POST /bookings/{bookingId}/attend",
+		middleware.AuthMiddleware(
+			middleware.RequireRoles(domain.RoleAdmin)(http.HandlerFunc(bookingHandler.MarkAttended)),
+		),
+	)
+	// User views their own booking history
+	mux.Handle(
+		"GET /users/me/bookings",
+		middleware.AuthMiddleware(http.HandlerFunc(bookingHandler.GetMyBookings)),
+	)
+	// Admin views all attendees for a session
+	mux.Handle(
+		"GET /sessions/{sessionId}/bookings",
+		middleware.AuthMiddleware(
+			middleware.RequireRoles(domain.RoleAdmin)(http.HandlerFunc(bookingHandler.GetSessionAttendees)),
+		),
+	mux.Handle(
+		"GET /transactions",
+		middleware.AuthMiddleware(http.HandlerFunc(transactionHandler.GetMyTransactions)),
+	)
+	mux.Handle(
+		"POST /wallet/topup",
+		middleware.AuthMiddleware(http.HandlerFunc(walletHandler.TopUp)),
 	)
 
 	mux.Handle("/me", middleware.AuthMiddleware(http.HandlerFunc(authHandler.Me)))
