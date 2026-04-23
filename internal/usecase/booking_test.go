@@ -60,6 +60,11 @@ type mockBookingRepo struct {
 	attendedCalled bool
 }
 
+func (m *mockBookingRepo) ListByGymID(ctx context.Context, gymID int) ([]domain.Booking, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (m *mockBookingRepo) Create(tx *sql.Tx, userID, sessionID int) (int, error) {
 	return 1, m.createErr
 }
