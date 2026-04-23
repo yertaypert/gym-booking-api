@@ -33,12 +33,14 @@ func main() {
 	walletRepo := repository.NewWalletRepository(db)
 	sessionRepo := repository.NewSessionRepository(db)
 	classRepo := repository.NewClassRepository(db)
+	transactionRepo := repository.NewTransactionRepository(db)
 
 	// Usecases
 	authUsecase := usecase.NewAuthUsecase(userRepo)
 	gymUsecase := usecase.NewGymUsecase(gymRepo)
 	bookingUsecase := usecase.NewBookingUsecase(db, bookingRepo, walletRepo, userRepo, sessionRepo, gymRepo)
 	classUsecase := usecase.NewClassUsecase(classRepo)
+	transactionUsecase := usecase.NewTransactionUsecase(transactionRepo)
 	walletUsecase := usecase.NewWalletUsecase(db, walletRepo)
 
 	// Handlers
@@ -46,6 +48,7 @@ func main() {
 	gymHandler := handler.NewGymHandler(gymUsecase)
 	bookingHandler := handler.NewBookingHandler(bookingUsecase)
 	classHandler := handler.NewClassHandler(classUsecase)
+	transactionHandler := handler.NewTransactionHandler(transactionUsecase)
 	walletHandler := handler.NewWalletHandler(walletUsecase)
 
 	mux := http.NewServeMux()
@@ -96,6 +99,8 @@ func main() {
 		middleware.AuthMiddleware(http.HandlerFunc(bookingHandler.CancelBooking)),
 	)
 	mux.Handle(
+		"GET /transactions",
+		middleware.AuthMiddleware(http.HandlerFunc(transactionHandler.GetMyTransactions)),
 		"POST /wallet/topup",
 		middleware.AuthMiddleware(http.HandlerFunc(walletHandler.TopUp)),
 	)
