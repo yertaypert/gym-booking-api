@@ -101,6 +101,8 @@ func main() {
 	mux.Handle(
 		"GET /transactions",
 		middleware.AuthMiddleware(http.HandlerFunc(transactionHandler.GetMyTransactions)),
+	)
+	mux.Handle(
 		"POST /wallet/topup",
 		middleware.AuthMiddleware(http.HandlerFunc(walletHandler.TopUp)),
 	)
