@@ -319,3 +319,19 @@ func (r *GymRepository) ensureClassBelongsToGym(gymID, classID int) error {
 
 	return nil
 }
+
+func (r *GymRepository) AssignTrainer(gymID int, trainerID int) error {
+	if err := r.ensureGymExists(gymID); err != nil {
+		return err
+	}
+
+	_, err := r.db.Exec(`INSERT INTO gym_trainers (gym_id, user_id) VALUES ($1, $2)`, gymID, trainerID)
+	if err != nil {
+		if pgErr, ok := err.(*pq.Error); ok && pgErr.Code == "23505" {
+			return errors.New("trainer is already assigned to this gym")
+		}
+		return err
+	}
+
+	return nil
+}

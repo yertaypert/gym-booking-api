@@ -191,3 +191,7 @@ func (u *GymUsecase) CreateSession(userID int, userRole domain.UserRole, gymID, 
 
 	return created, nil
 }
+
+func (u *GymUsecase) AssignTrainer(gymID int, trainerID int) error {
+	return u.gymRepo.AssignTrainer(gymID, trainerID)
+}
