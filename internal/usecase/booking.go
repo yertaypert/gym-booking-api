@@ -17,6 +17,7 @@ type BookingUsecase struct {
 	walletRepo  WalletRepository
 	userRepo    UserRepository
 	sessionRepo SessionRepository
+	gymRepo     GymRepository
 }
 
 func NewBookingUsecase(
@@ -25,6 +26,7 @@ func NewBookingUsecase(
 	walletRepo WalletRepository,
 	userRepo UserRepository,
 	sessionRepo SessionRepository,
+	gymRepo GymRepository,
 ) *BookingUsecase {
 	return &BookingUsecase{
 		db:          db,
@@ -32,7 +34,21 @@ func NewBookingUsecase(
 		walletRepo:  walletRepo,
 		userRepo:    userRepo,
 		sessionRepo: sessionRepo,
+		gymRepo:     gymRepo,
 	}
+}
+
+func (u *BookingUsecase) ListGymBookings(ctx context.Context, userID int, userRole domain.UserRole, gymID int) ([]domain.Booking, error) {
+	gym, err := u.gymRepo.GetGymByID(gymID)
+	if err != nil {
+		return nil, err
+	}
+
+	if userRole != domain.RoleAdmin && gym.OwnerID != userID {
+		return nil, ErrBookingForbidden
+	}
+
+	return u.bookingRepo.ListByGymID(ctx, gymID)
 }
 
 func (u *BookingUsecase) CreateBooking(ctx context.Context, userID, sessionID int) (int, error) {
@@ -75,7 +91,7 @@ func (u *BookingUsecase) CreateBooking(ctx context.Context, userID, sessionID in
 		return 0, err
 	}
 
-	if err = u.walletRepo.CreateTransaction(tx, userID, bookingID, -session.Price, string(domain.TransactionTypePayment)); err != nil {
+	if err = u.walletRepo.CreateTransaction(tx, userID, &bookingID, -session.Price, string(domain.TransactionTypePayment)); err != nil {
 		return 0, err
 	}
 
@@ -120,7 +136,7 @@ func (u *BookingUsecase) CancelBooking(ctx context.Context, requesterID, booking
 		return err
 	}
 
-	if err = u.walletRepo.CreateTransaction(tx, booking.UserID, bookingID, session.Price, string(domain.TransactionTypeRefund)); err != nil {
+	if err = u.walletRepo.CreateTransaction(tx, booking.UserID, &bookingID, session.Price, string(domain.TransactionTypeRefund)); err != nil {
 		return err
 	}
 

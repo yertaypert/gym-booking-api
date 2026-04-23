@@ -22,6 +22,7 @@ type GymRepository interface {
 	ListSessionsByGymAndClassID(gymID, classID int) ([]domain.Session, error)
 	GetClassByID(classID int) (*domain.Class, error)
 	CreateSession(gymID int, session domain.Session) (*domain.Session, error)
+	ListGymsByOwnerID(ownerID int) ([]domain.Gym, error)
 }
 
 type BookingRepository interface {
@@ -29,11 +30,12 @@ type BookingRepository interface {
 	Create(tx *sql.Tx, userID, sessionID int) (int, error)
 	UpdateStatus(ctx context.Context, tx *sql.Tx, bookingID int, status string) error
 	GetByUserID(ctx context.Context, userID int) ([]domain.Booking, error)
+	ListByGymID(ctx context.Context, gymID int) ([]domain.Booking, error)
 }
 
 type WalletRepository interface {
 	UpdateBalance(tx *sql.Tx, userID int, amount float64) error
-	CreateTransaction(tx *sql.Tx, userID int, bookingID int, amount float64, txType string) error
+	CreateTransaction(tx *sql.Tx, userID int, bookingID *int, amount float64, txType string) error
 }
 
 type SessionRepository interface {
@@ -44,4 +46,5 @@ type SessionRepository interface {
 
 type TransactionRepository interface {
 	Create(transaction *domain.Transaction) error
+	GetByUserID(userID int) ([]domain.Transaction, error)
 }
