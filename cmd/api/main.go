@@ -102,6 +102,24 @@ func main() {
 		"POST /bookings/{bookingId}/cancel",
 		middleware.AuthMiddleware(http.HandlerFunc(bookingHandler.CancelBooking)),
 	)
+	// Mark a booking as attended — admin only
+	mux.Handle(
+		"POST /bookings/{bookingId}/attend",
+		middleware.AuthMiddleware(
+			middleware.RequireRoles(domain.RoleAdmin)(http.HandlerFunc(bookingHandler.MarkAttended)),
+		),
+	)
+	// User views their own booking history
+	mux.Handle(
+		"GET /users/me/bookings",
+		middleware.AuthMiddleware(http.HandlerFunc(bookingHandler.GetMyBookings)),
+	)
+	// Admin views all attendees for a session
+	mux.Handle(
+		"GET /sessions/{sessionId}/bookings",
+		middleware.AuthMiddleware(
+			middleware.RequireRoles(domain.RoleAdmin)(http.HandlerFunc(bookingHandler.GetSessionAttendees)),
+		),
 	mux.Handle(
 		"GET /transactions",
 		middleware.AuthMiddleware(http.HandlerFunc(transactionHandler.GetMyTransactions)),

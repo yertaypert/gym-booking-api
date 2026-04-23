@@ -30,6 +30,10 @@ type BookingRepository interface {
 	Create(tx *sql.Tx, userID, sessionID int) (int, error)
 	UpdateStatus(ctx context.Context, tx *sql.Tx, bookingID int, status string) error
 	GetByUserID(ctx context.Context, userID int) ([]domain.Booking, error)
+	GetByUserID(ctx context.Context, userID int) ([]domain.BookingDetail, error)
+	GetBySessionID(ctx context.Context, sessionID int) ([]domain.BookingDetail, error)
+	ExistsByUserAndSession(ctx context.Context, userID, sessionID int) (bool, error)
+	MarkAttended(ctx context.Context, tx *sql.Tx, bookingID int) error
 	ListByGymID(ctx context.Context, gymID int) ([]domain.Booking, error)
 }
 
