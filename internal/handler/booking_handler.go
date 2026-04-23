@@ -149,26 +149,6 @@ func (h *BookingHandler) GetSessionAttendees(w http.ResponseWriter, r *http.Requ
 	_ = json.NewEncoder(w).Encode(attendees)
 }
 
-func (h *BookingHandler) MyBookings(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
-	if !ok {
-		http.Error(w, "invalid user context", http.StatusUnauthorized)
-		return
-	}
-	bookings, err := h.bookingUsecase.GetUserBookings(r.Context(), userID)
-	if err != nil {
-		http.Error(w, "failed to get user bookings", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	if err := json.NewEncoder(w).Encode(bookings); err != nil {
-		http.Error(w, "failed to encode response", http.StatusInternalServerError)
-		return
-	}
-}
-
 func (h *BookingHandler) ListGymBookings(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
 	if !ok {
