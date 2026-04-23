@@ -22,6 +22,7 @@ type GymRepository interface {
 	ListSessionsByGymAndClassID(gymID, classID int) ([]domain.Session, error)
 	GetClassByID(classID int) (*domain.Class, error)
 	CreateSession(gymID int, session domain.Session) (*domain.Session, error)
+	ListGymsByOwnerID(ownerID int) ([]domain.Gym, error)
 }
 
 type BookingRepository interface {
@@ -32,6 +33,7 @@ type BookingRepository interface {
 	GetBySessionID(ctx context.Context, sessionID int) ([]domain.BookingDetail, error)
 	ExistsByUserAndSession(ctx context.Context, userID, sessionID int) (bool, error)
 	MarkAttended(ctx context.Context, tx *sql.Tx, bookingID int) error
+	ListByGymID(ctx context.Context, gymID int) ([]domain.Booking, error)
 }
 
 type WalletRepository interface {

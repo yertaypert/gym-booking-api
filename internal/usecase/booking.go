@@ -25,6 +25,7 @@ type BookingUsecase struct {
 	walletRepo  WalletRepository
 	userRepo    UserRepository
 	sessionRepo SessionRepository
+	gymRepo     GymRepository
 }
 
 func NewBookingUsecase(
@@ -33,6 +34,7 @@ func NewBookingUsecase(
 	walletRepo WalletRepository,
 	userRepo UserRepository,
 	sessionRepo SessionRepository,
+	gymRepo GymRepository,
 ) *BookingUsecase {
 	return &BookingUsecase{
 		db:          db,
@@ -40,11 +42,26 @@ func NewBookingUsecase(
 		walletRepo:  walletRepo,
 		userRepo:    userRepo,
 		sessionRepo: sessionRepo,
+		gymRepo:     gymRepo,
 	}
 }
 
 // CreateBooking registers a user for a session, deducts balance, and records
 // the transaction — all inside a single DB transaction.
+
+func (u *BookingUsecase) ListGymBookings(ctx context.Context, userID int, userRole domain.UserRole, gymID int) ([]domain.Booking, error) {
+	gym, err := u.gymRepo.GetGymByID(gymID)
+	if err != nil {
+		return nil, err
+	}
+
+	if userRole != domain.RoleAdmin && gym.OwnerID != userID {
+		return nil, ErrBookingForbidden
+	}
+
+	return u.bookingRepo.ListByGymID(ctx, gymID)
+}
+
 func (u *BookingUsecase) CreateBooking(ctx context.Context, userID, sessionID int) (int, error) {
 	user, err := u.userRepo.GetByID(userID)
 	if err != nil {
