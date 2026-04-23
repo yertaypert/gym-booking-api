@@ -180,6 +180,9 @@ func (u *BookingUsecase) CancelBooking(ctx context.Context, requesterID, booking
 
 	return tx.Commit()
 }
+func (u *BookingUsecase) GetUserBookings(ctx context.Context, userID int) ([]domain.Booking, error) {
+	return u.bookingRepo.GetByUserID(ctx, userID)
+}
 
 // MarkAttended marks a booking as attended.  Only admins (or trainers) should
 // call this endpoint — the handler enforces the role.

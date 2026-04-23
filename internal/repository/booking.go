@@ -59,7 +59,40 @@ func (r *BookingRepository) GetByID(ctx context.Context, bookingID int) (*domain
 	}
 	return &booking, nil
 }
+func (r *BookingRepository) GetByUserID(ctx context.Context, userID int) ([]domain.Booking, error) {
+	query := `SELECT id, user_id, session_id, status, created_at FROM bookings WHERE user_id = $1 ORDER BY created_at DESC`
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
+	var bookings []domain.Booking
+	for rows.Next() {
+		var b domain.Booking
+		err := rows.Scan(
+			&b.ID,
+			&b.UserID,
+			&b.SessionID,
+			&b.Status,
+			&b.CreatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		bookings = append(bookings, b)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return bookings, nil
+}
+func (r *BookingRepository) ListByGymId(ctx context.Context, gymID int) ([]domain.Booking, error) {
+	query := `SELECT b.id, b.user_id, b.session_id, b.status, b.created_at FROM bookings b
+			JOIN class_sessions s ON b.session_id = s.id
+			JOIN classes c ON s.class_id = c.id
+			WHERE b.gym_id = $1
+			ORDER BY b.created_at DESC`
 func (r *BookingRepository) ExistsByUserAndSession(ctx context.Context, userID, sessionID int) (bool, error) {
 	var exists bool
 	query := `SELECT EXISTS(
@@ -145,7 +178,14 @@ func (r *BookingRepository) ListByGymID(ctx context.Context, gymID int) ([]domai
 	var bookings []domain.Booking
 	for rows.Next() {
 		var b domain.Booking
-		if err := rows.Scan(&b.ID, &b.UserID, &b.SessionID, &b.Status, &b.CreatedAt); err != nil {
+		err := rows.Scan(
+			&b.ID,
+			&b.UserID,
+			&b.SessionID,
+			&b.Status,
+			&b.CreatedAt,
+		)
+		if err != nil {
 			return nil, err
 		}
 		bookings = append(bookings, b)
