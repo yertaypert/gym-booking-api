@@ -87,12 +87,6 @@ func (r *BookingRepository) GetByUserID(ctx context.Context, userID int) ([]doma
 	}
 	return bookings, nil
 }
-func (r *BookingRepository) ListByGymId(ctx context.Context, gymID int) ([]domain.Booking, error) {
-	query := `SELECT b.id, b.user_id, b.session_id, b.status, b.created_at FROM bookings b
-			JOIN class_sessions s ON b.session_id = s.id
-			JOIN classes c ON s.class_id = c.id
-			WHERE b.gym_id = $1
-			ORDER BY b.created_at DESC`
 func (r *BookingRepository) ExistsByUserAndSession(ctx context.Context, userID, sessionID int) (bool, error) {
 	var exists bool
 	query := `SELECT EXISTS(
@@ -103,8 +97,8 @@ func (r *BookingRepository) ExistsByUserAndSession(ctx context.Context, userID, 
 	return exists, err
 }
 
-// GetByUserID возвращает детальную информацию о бронированиях пользователя
-func (r *BookingRepository) GetByUserID(ctx context.Context, userID int) ([]domain.BookingDetail, error) {
+// GetDetailsByUserID возвращает детальную информацию о бронированиях пользователя
+func (r *BookingRepository) GetDetailsByUserID(ctx context.Context, userID int) ([]domain.BookingDetail, error) {
 	query := `
        SELECT
           b.id,

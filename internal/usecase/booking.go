@@ -228,7 +228,7 @@ func (u *BookingUsecase) MarkAttended(ctx context.Context, bookingID int) error 
 
 // GetMyBookings returns all bookings (with session detail) for the calling user.
 func (u *BookingUsecase) GetMyBookings(ctx context.Context, userID int) ([]domain.BookingDetail, error) {
-	return u.bookingRepo.GetByUserID(ctx, userID)
+	return u.bookingRepo.GetDetailsByUserID(ctx, userID)
 }
 
 // GetSessionAttendees returns all bookings for a session.  Intended for admin/trainer use.

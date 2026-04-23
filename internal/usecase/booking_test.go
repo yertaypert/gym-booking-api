@@ -78,7 +78,10 @@ func (m *mockBookingRepo) GetByID(ctx context.Context, bookingID int) (*domain.B
 func (m *mockBookingRepo) ExistsByUserAndSession(ctx context.Context, userID, sessionID int) (bool, error) {
 	return m.isDuplicate, nil
 }
-func (m *mockBookingRepo) GetByUserID(ctx context.Context, userID int) ([]domain.BookingDetail, error) {
+func (m *mockBookingRepo) GetByUserID(ctx context.Context, userID int) ([]domain.Booking, error) {
+	return []domain.Booking{}, nil
+}
+func (m *mockBookingRepo) GetDetailsByUserID(ctx context.Context, userID int) ([]domain.BookingDetail, error) {
 	return []domain.BookingDetail{}, nil
 }
 func (m *mockBookingRepo) GetBySessionID(ctx context.Context, sessionID int) ([]domain.BookingDetail, error) {
@@ -98,7 +101,7 @@ func (m *mockWalletRepo) UpdateBalance(tx *sql.Tx, userID int, amount float64) e
 	m.lastAmount = amount
 	return nil
 }
-func (m *mockWalletRepo) CreateTransaction(tx *sql.Tx, userID, bookingID int, amount float64, txType string) error {
+func (m *mockWalletRepo) CreateTransaction(tx *sql.Tx, userID int, bookingID *int, amount float64, txType string) error {
 	return nil
 }
 

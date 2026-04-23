@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/yertaypert/gym-booking-api/internal/middleware"
 	"github.com/yertaypert/gym-booking-api/internal/usecase"
 )
 
@@ -21,6 +22,12 @@ type TopUpRequest struct {
 }
 
 func (h *WalletHandler) TopUp(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 
 	var req TopUpRequest
@@ -30,7 +37,7 @@ func (h *WalletHandler) TopUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := h.walletUsecase.TopUpBalance(req.UserID, req.Amount)
+	err := h.walletUsecase.TopUpBalance(userID, req.Amount)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(`{"error": "` + err.Error() + `"}`))

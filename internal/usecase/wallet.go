@@ -3,16 +3,14 @@ package usecase
 import (
 	"database/sql"
 	"errors"
-
-	"github.com/yertaypert/gym-booking-api/internal/repository"
 )
 
 type WalletUsecase struct {
 	db         *sql.DB
-	walletRepo *repository.WalletRepository
+	walletRepo WalletRepository
 }
 
-func NewWalletUsecase(db *sql.DB, walletRepo *repository.WalletRepository) *WalletUsecase {
+func NewWalletUsecase(db *sql.DB, walletRepo WalletRepository) *WalletUsecase {
 	return &WalletUsecase{
 		db:         db,
 		walletRepo: walletRepo,

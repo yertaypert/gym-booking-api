@@ -3,8 +3,10 @@ package usecase
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"github.com/yertaypert/gym-booking-api/internal/domain"
+	"github.com/yertaypert/gym-booking-api/internal/repository"
 )
 
 type UserRepository interface {
@@ -31,7 +33,7 @@ type BookingRepository interface {
 	Create(tx *sql.Tx, userID, sessionID int) (int, error)
 	UpdateStatus(ctx context.Context, tx *sql.Tx, bookingID int, status string) error
 	GetByUserID(ctx context.Context, userID int) ([]domain.Booking, error)
-	GetByUserID(ctx context.Context, userID int) ([]domain.BookingDetail, error)
+	GetDetailsByUserID(ctx context.Context, userID int) ([]domain.BookingDetail, error)
 	GetBySessionID(ctx context.Context, sessionID int) ([]domain.BookingDetail, error)
 	ExistsByUserAndSession(ctx context.Context, userID, sessionID int) (bool, error)
 	MarkAttended(ctx context.Context, tx *sql.Tx, bookingID int) error
@@ -52,4 +54,11 @@ type SessionRepository interface {
 type TransactionRepository interface {
 	Create(transaction *domain.Transaction) error
 	GetByUserID(userID int) ([]domain.Transaction, error)
+}
+
+type ClassRepository interface {
+	ListDistinctClasses(ctx context.Context) ([]string, error)
+	ListGymsByClassName(ctx context.Context, name string) ([]repository.GymWithClass, error)
+	SearchSessionsByClassName(ctx context.Context, name string, startTime, endTime *time.Time) ([]repository.SessionWithGym, error)
+	GetSessionWithDetails(ctx context.Context, sessionID int) (*repository.SessionWithGym, error)
 }
