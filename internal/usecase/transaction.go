@@ -34,3 +34,7 @@ func (u *TransactionUsecase) CreateTransaction(userID int, amount float64, txTyp
 
 	return tx, nil
 }
+
+func (u *TransactionUsecase) GetUserTransactions(userID int) ([]domain.Transaction, error) {
+	return u.repo.GetByUserID(userID)
+}

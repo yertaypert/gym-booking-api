@@ -121,7 +121,7 @@ func (u *BookingUsecase) CreateBooking(ctx context.Context, userID, sessionID in
 		return 0, err
 	}
 
-	if err = u.walletRepo.CreateTransaction(tx, userID, bookingID, -session.Price, string(domain.TransactionTypePayment)); err != nil {
+	if err = u.walletRepo.CreateTransaction(tx, userID, &bookingID, -session.Price, string(domain.TransactionTypePayment)); err != nil {
 		return 0, err
 	}
 
@@ -170,7 +170,7 @@ func (u *BookingUsecase) CancelBooking(ctx context.Context, requesterID, booking
 		return err
 	}
 
-	if err = u.walletRepo.CreateTransaction(tx, booking.UserID, bookingID, session.Price, string(domain.TransactionTypeRefund)); err != nil {
+	if err = u.walletRepo.CreateTransaction(tx, booking.UserID, &bookingID, session.Price, string(domain.TransactionTypeRefund)); err != nil {
 		return err
 	}
 
