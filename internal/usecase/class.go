@@ -8,10 +8,10 @@ import (
 )
 
 type ClassUsecase struct {
-	classRepo *repository.ClassRepository
+	classRepo ClassRepository
 }
 
-func NewClassUsecase(classRepo *repository.ClassRepository) *ClassUsecase {
+func NewClassUsecase(classRepo ClassRepository) *ClassUsecase {
 	return &ClassUsecase{classRepo: classRepo}
 }
 

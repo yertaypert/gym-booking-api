@@ -113,6 +113,7 @@ func main() {
 		middleware.AuthMiddleware(
 			middleware.RequireRoles(domain.RoleAdmin, domain.RoleGymOwner)(http.HandlerFunc(gymHandler.AssignTrainer)),
 		),
+	)
 	// Mark a booking as attended — admin only
 	mux.Handle(
 		"POST /bookings/{bookingId}/attend",
@@ -131,6 +132,7 @@ func main() {
 		middleware.AuthMiddleware(
 			middleware.RequireRoles(domain.RoleAdmin)(http.HandlerFunc(bookingHandler.GetSessionAttendees)),
 		),
+	)
 	mux.Handle(
 		"GET /transactions",
 		middleware.AuthMiddleware(http.HandlerFunc(transactionHandler.GetMyTransactions)),

@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/yertaypert/gym-booking-api/internal/domain"
@@ -59,12 +60,12 @@ func (r *ClassRepository) SearchSessionsByClassName(
 	argCount := 2
 
 	if startTime != nil {
-		query += ` AND s.start_time >= $` + string(rune('0'+argCount))
+		query += fmt.Sprintf(" AND s.start_time >= $%d", argCount)
 		args = append(args, *startTime)
 		argCount++
 	}
 	if endTime != nil {
-		query += ` AND s.end_time <= $` + string(rune('0'+argCount))
+		query += fmt.Sprintf(" AND s.end_time <= $%d", argCount)
 		args = append(args, *endTime)
 		argCount++
 	}
