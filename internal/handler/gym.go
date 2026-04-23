@@ -251,3 +251,29 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(v)
 }
+
+func (h *GymHandler) AssignTrainer(w http.ResponseWriter, r *http.Request) {
+	gymID, err := parsePathID(r, "id")
+	if err != nil {
+		http.Error(w, "invalid gym id", http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		TrainerID int `json:"trainer_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	err = h.usecase.AssignTrainer(gymID, req.TrainerID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"message": "Trainer assigned successfully"}`))
+}

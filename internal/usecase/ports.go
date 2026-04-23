@@ -23,6 +23,7 @@ type GymRepository interface {
 	GetClassByID(classID int) (*domain.Class, error)
 	CreateSession(gymID int, session domain.Session) (*domain.Session, error)
 	ListGymsByOwnerID(ownerID int) ([]domain.Gym, error)
+	AssignTrainer(gymID int, trainerID int) error
 }
 
 type BookingRepository interface {
