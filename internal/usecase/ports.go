@@ -34,7 +34,7 @@ type BookingRepository interface {
 
 type WalletRepository interface {
 	UpdateBalance(tx *sql.Tx, userID int, amount float64) error
-	CreateTransaction(tx *sql.Tx, userID int, bookingID int, amount float64, txType string) error
+	CreateTransaction(tx *sql.Tx, userID int, bookingID *int, amount float64, txType string) error
 }
 
 type SessionRepository interface {
