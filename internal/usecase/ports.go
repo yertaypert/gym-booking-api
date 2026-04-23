@@ -45,4 +45,5 @@ type SessionRepository interface {
 
 type TransactionRepository interface {
 	Create(transaction *domain.Transaction) error
+	GetByUserID(userID int) ([]domain.Transaction, error)
 }
