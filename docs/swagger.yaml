@@ -1,0 +1,453 @@
+openapi: 3.0.3
+info:
+  title: Gym Booking API
+  description: API for managing gyms, classes, sessions, and user bookings.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id: { type: integer }
+        email: { type: string }
+        full_name: { type: string }
+        role: { type: string, enum: [admin, user, gym_owner, trainer] }
+        balance: { type: number, format: float }
+        created_at: { type: string, format: date-time }
+
+    Gym:
+      type: object
+      properties:
+        id: { type: integer }
+        owner_id: { type: integer }
+        name: { type: string }
+        address: { type: string }
+        description: { type: string }
+
+    Class:
+      type: object
+      properties:
+        id: { type: integer }
+        gym_id: { type: integer }
+        name: { type: string }
+        max_capacity: { type: integer }
+
+    Session:
+      type: object
+      properties:
+        id: { type: integer }
+        class_id: { type: integer }
+        start_time: { type: string, format: date-time }
+        end_time: { type: string, format: date-time }
+        available_slots: { type: integer }
+        price: { type: number, format: float }
+        status: { type: string }
+
+    BookingDetail:
+      type: object
+      properties:
+        booking_id: { type: integer }
+        session_id: { type: integer }
+        class_name: { type: string }
+        gym_name: { type: string }
+        start_time: { type: string, format: date-time }
+        end_time: { type: string, format: date-time }
+        price: { type: number, format: float }
+        status: { type: string }
+        user_id: { type: integer }
+        user_email: { type: string }
+        user_name: { type: string }
+        booked_at: { type: string, format: date-time }
+        attended_at: { type: string, format: date-time, nullable: true }
+
+    Transaction:
+      type: object
+      properties:
+        id: { type: integer }
+        user_id: { type: integer }
+        booking_id: { type: integer, nullable: true }
+        amount: { type: number, format: float }
+        type: { type: string, enum: [top_up, freeze, payment, refund] }
+        created_at: { type: string, format: date-time }
+
+paths:
+  /register:
+    post:
+      summary: Register a new user
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, full_name]
+              properties:
+                email: { type: string }
+                password: { type: string }
+                full_name: { type: string }
+      responses:
+        201: { description: User created }
+        400: { description: Invalid input }
+
+  /login:
+    post:
+      summary: Login and get JWT
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string }
+                password: { type: string }
+      responses:
+        200:
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+        401: { description: Invalid credentials }
+
+  /me:
+    get:
+      summary: Get current user profile
+      tags: [User]
+      security: [{ bearerAuth: [] }]
+      responses:
+        200:
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+
+  /me/bookings:
+    get:
+      summary: View your own bookings
+      tags: [User]
+      security: [{ bearerAuth: [] }]
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/BookingDetail' }
+
+  /me/gyms:
+    get:
+      summary: List gyms owned by the user (Admin/GymOwner only)
+      tags: [Gym Owner]
+      security: [{ bearerAuth: [] }]
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Gym' }
+
+  /gyms:
+    get:
+      summary: List all gyms
+      tags: [Public]
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Gym' }
+    post:
+      summary: Create a new gym (Admin only)
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [owner_id, name, address, description]
+              properties:
+                owner_id: { type: integer }
+                name: { type: string }
+                address: { type: string }
+                description: { type: string }
+      responses:
+        201:
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Gym' }
+
+  /gyms/{id}:
+    get:
+      summary: Get gym by ID
+      tags: [Public]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        200:
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Gym' }
+
+  /gyms/{id}/classes:
+    get:
+      summary: List classes for a gym
+      tags: [Public]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Class' }
+    post:
+      summary: Create a class (Admin/GymOwner only)
+      tags: [Gym Owner]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, max_capacity]
+              properties:
+                name: { type: string }
+                max_capacity: { type: integer }
+      responses:
+        201:
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Class' }
+
+  /gyms/{gymId}/classes/{classId}/sessions:
+    get:
+      summary: List sessions for a class
+      tags: [Public]
+      parameters:
+        - name: gymId
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: classId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Session' }
+    post:
+      summary: Create a session (Admin/GymOwner only)
+      tags: [Gym Owner]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: gymId
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: classId
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [start_time, end_time, price]
+              properties:
+                start_time: { type: string, format: date-time }
+                end_time: { type: string, format: date-time }
+                price: { type: number, format: float }
+      responses:
+        201:
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+
+  /sessions/{sessionId}/bookings:
+    post:
+      summary: Book a session
+      tags: [User]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        201:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  booking_id: { type: integer }
+                  message: { type: string }
+
+  /bookings/{bookingId}/cancel:
+    post:
+      summary: Cancel a booking
+      tags: [User]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        200: { description: Booking cancelled }
+
+  /bookings/{bookingId}/attend:
+    post:
+      summary: Mark attendance (Admin only)
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        200: { description: Attendance marked }
+
+  /sessions/{sessionId}/bookings:
+    get:
+      summary: View all session attendees (Admin only)
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/BookingDetail' }
+
+  /wallet/topup:
+    post:
+      summary: Add funds to wallet
+      tags: [User]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount]
+              properties:
+                amount: { type: number, format: float }
+      responses:
+        200: { description: Wallet topped up }
+
+  /transactions:
+    get:
+      summary: Get your transactions
+      tags: [User]
+      security: [{ bearerAuth: [] }]
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Transaction' }
+
+  /classes:
+    get:
+      summary: List unique class names
+      tags: [Discovery]
+      responses:
+        200:
+          content:
+            application/json:
+              schema: { type: array, items: { type: string } }
+
+  /classes/{name}:
+    get:
+      summary: Find gyms offering a class
+      tags: [Discovery]
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    gym_id: { type: integer }
+                    gym_name: { type: string }
+                    gym_address: { type: string }
+                    class_id: { type: integer }
+
+  /classes/{name}/sessions:
+    get:
+      summary: Search sessions by class name
+      tags: [Discovery]
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - $ref: '#/components/schemas/Session'
+                    - type: object
+                      properties:
+                        gym_name: { type: string }
+                        gym_address: { type: string }
+                        class_name: { type: string }
