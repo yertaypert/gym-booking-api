@@ -67,24 +67,60 @@ func seedAdmin(db *sql.DB) (int, error) {
 }
 
 func seedDemoData(db *sql.DB, ownerID int) error {
-	gymID, err := getOrCreateGym(db, "Downtown Gym", "123 Main St", "Open 24/7 demo gym", ownerID)
-	if err != nil {
-		return err
+	gyms := []struct {
+		name    string
+		address string
+		desc    string
+	}{
+		{"Downtown Gym", "123 Main St", "Open 24/7 demo gym"},
+		{"Fitness First", "456 Oak Ave", "High-end fitness center"},
+		{"Iron Works", "789 Industrial Rd", "Old school bodybuilding gym"},
 	}
 
-	classID, maxCapacity, err := getOrCreateClass(db, gymID, "Yoga", 20)
-	if err != nil {
-		return err
+	classes := []struct {
+		name        string
+		maxCapacity int
+	}{
+		{"Yoga", 20},
+		{"HIIT", 15},
+		{"Pilates", 12},
 	}
 
-	startTime := time.Now().UTC().Add(24 * time.Hour).Truncate(time.Hour)
-	endTime := startTime.Add(time.Hour)
+	for _, g := range gyms {
+		gymID, err := getOrCreateGym(db, g.name, g.address, g.desc, ownerID)
+		if err != nil {
+			return err
+		}
 
-	if err := getOrCreateSession(db, classID, startTime, endTime, maxCapacity, 15); err != nil {
-		return err
+		for _, c := range classes {
+			classID, maxCapacity, err := getOrCreateClass(db, gymID, c.name, c.maxCapacity)
+			if err != nil {
+				return err
+			}
+
+			// Seed 3 sessions for each class at different times
+			sessionTimes := []struct {
+				startOffset time.Duration
+				duration    time.Duration
+				price       float64
+			}{
+				{24 * time.Hour, time.Hour, 15.0},
+				{48 * time.Hour, 90 * time.Minute, 20.0},
+				{72 * time.Hour, time.Hour, 18.0},
+			}
+
+			for _, st := range sessionTimes {
+				startTime := time.Now().UTC().Add(st.startOffset).Truncate(time.Hour)
+				endTime := startTime.Add(st.duration)
+
+				if err := getOrCreateSession(db, classID, startTime, endTime, maxCapacity, st.price); err != nil {
+					return err
+				}
+			}
+		}
 	}
 
-	log.Println("Seeded demo gym, class, and session data")
+	log.Println("Seeded multiple gyms, classes, and sessions data")
 	return nil
 }
 
