@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/yertaypert/gym-booking-api/internal/domain"
+	"github.com/yertaypert/gym-booking-api/internal/middleware"
 	"github.com/yertaypert/gym-booking-api/internal/usecase"
 )
 
@@ -15,6 +17,7 @@ type GymHandler struct {
 }
 
 type CreateGymRequest struct {
+	OwnerID     int    `json:"owner_id"`
 	Name        string `json:"name"`
 	Address     string `json:"address"`
 	Description string `json:"description"`
@@ -37,6 +40,22 @@ func NewGymHandler(u *usecase.GymUsecase) *GymHandler {
 
 func (h *GymHandler) ListGyms(w http.ResponseWriter, r *http.Request) {
 	gyms, err := h.usecase.ListGyms()
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, gyms)
+}
+
+func (h *GymHandler) ListMyGyms(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
+	if !ok {
+		http.Error(w, "invalid user id", http.StatusUnauthorized)
+		return
+	}
+
+	gyms, err := h.usecase.ListGymsByOwner(userID)
 	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
@@ -121,14 +140,16 @@ func (h *GymHandler) CreateGym(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	gym, err := h.usecase.CreateGym(req.Name, req.Address, req.Description)
+	gym, err := h.usecase.CreateGym(req.OwnerID, req.Name, req.Address, req.Description)
 	if err != nil {
-		if errors.Is(err, usecase.ErrInvalidGymName) {
+		switch {
+		case errors.Is(err, usecase.ErrInvalidGymName), errors.Is(err, usecase.ErrInvalidOwnerID):
 			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
+		case errors.Is(err, usecase.ErrGymAlreadyExists):
+			http.Error(w, err.Error(), http.StatusConflict)
+		default:
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 		}
-
-		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -142,17 +163,22 @@ func (h *GymHandler) CreateClass(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userID, _ := r.Context().Value(middleware.UserIDKey).(int)
+	userRole, _ := r.Context().Value(middleware.UserRoleKey).(domain.UserRole)
+
 	var req CreateClassRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
 
-	class, err := h.usecase.CreateClass(gymID, req.Name, req.MaxCapacity)
+	class, err := h.usecase.CreateClass(userID, userRole, gymID, req.Name, req.MaxCapacity)
 	if err != nil {
 		switch {
 		case errors.Is(err, usecase.ErrGymNotFound):
 			http.Error(w, err.Error(), http.StatusNotFound)
+		case errors.Is(err, usecase.ErrNotGymOwner):
+			http.Error(w, err.Error(), http.StatusForbidden)
 		case errors.Is(err, usecase.ErrInvalidClassName), errors.Is(err, usecase.ErrInvalidMaxCapacity):
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		default:
@@ -177,6 +203,9 @@ func (h *GymHandler) CreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userID, _ := r.Context().Value(middleware.UserIDKey).(int)
+	userRole, _ := r.Context().Value(middleware.UserRoleKey).(domain.UserRole)
+
 	var req CreateSessionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request", http.StatusBadRequest)
@@ -195,11 +224,13 @@ func (h *GymHandler) CreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session, err := h.usecase.CreateSession(gymID, classID, startTime, endTime, req.Price)
+	session, err := h.usecase.CreateSession(userID, userRole, gymID, classID, startTime, endTime, req.Price)
 	if err != nil {
 		switch {
 		case errors.Is(err, usecase.ErrGymNotFound), errors.Is(err, usecase.ErrClassNotFound), errors.Is(err, usecase.ErrClassDoesNotBelongToGym):
 			http.Error(w, err.Error(), http.StatusNotFound)
+		case errors.Is(err, usecase.ErrNotGymOwner):
+			http.Error(w, err.Error(), http.StatusForbidden)
 		case errors.Is(err, usecase.ErrInvalidSessionTime), errors.Is(err, usecase.ErrInvalidSessionPrice):
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		default:
@@ -219,4 +250,30 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(v)
+}
+
+func (h *GymHandler) AssignTrainer(w http.ResponseWriter, r *http.Request) {
+	gymID, err := parsePathID(r, "id")
+	if err != nil {
+		http.Error(w, "invalid gym id", http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		TrainerID int `json:"trainer_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	err = h.usecase.AssignTrainer(gymID, req.TrainerID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"message": "Trainer assigned successfully"}`))
 }

@@ -23,25 +23,26 @@ func main() {
 	db := database.NewDB(cfg)
 	defer db.Close()
 
-	if err := seedAdmin(db); err != nil {
+	adminID, err := seedAdmin(db)
+	if err != nil {
 		log.Fatal(err)
 	}
 
 	if shouldSeedDemoData() {
-		if err := seedDemoData(db); err != nil {
+		if err := seedDemoData(db, adminID); err != nil {
 			log.Fatal(err)
 		}
 	}
 }
 
-func seedAdmin(db *sql.DB) error {
+func seedAdmin(db *sql.DB) (int, error) {
 	email := strings.ToLower(strings.TrimSpace(getRequiredEnv("SEED_ADMIN_EMAIL")))
 	password := getRequiredEnv("SEED_ADMIN_PASSWORD")
 	fullName := strings.TrimSpace(getEnv("SEED_ADMIN_FULL_NAME", "Initial Admin"))
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return fmt.Errorf("hash admin password: %w", err)
+		return 0, fmt.Errorf("hash admin password: %w", err)
 	}
 
 	var id int
@@ -58,36 +59,72 @@ func seedAdmin(db *sql.DB) error {
 		fullName,
 	).Scan(&id)
 	if err != nil {
-		return fmt.Errorf("seed admin user: %w", err)
+		return 0, fmt.Errorf("seed admin user: %w", err)
 	}
 
 	log.Printf("Seeded admin user %s with id %d", email, id)
+	return id, nil
+}
+
+func seedDemoData(db *sql.DB, ownerID int) error {
+	gyms := []struct {
+		name    string
+		address string
+		desc    string
+	}{
+		{"Downtown Gym", "123 Main St", "Open 24/7 demo gym"},
+		{"Fitness First", "456 Oak Ave", "High-end fitness center"},
+		{"Iron Works", "789 Industrial Rd", "Old school bodybuilding gym"},
+	}
+
+	classes := []struct {
+		name        string
+		maxCapacity int
+	}{
+		{"Yoga", 20},
+		{"HIIT", 15},
+		{"Pilates", 12},
+	}
+
+	for _, g := range gyms {
+		gymID, err := getOrCreateGym(db, g.name, g.address, g.desc, ownerID)
+		if err != nil {
+			return err
+		}
+
+		for _, c := range classes {
+			classID, maxCapacity, err := getOrCreateClass(db, gymID, c.name, c.maxCapacity)
+			if err != nil {
+				return err
+			}
+
+			// Seed 3 sessions for each class at different times
+			sessionTimes := []struct {
+				startOffset time.Duration
+				duration    time.Duration
+				price       float64
+			}{
+				{24 * time.Hour, time.Hour, 15.0},
+				{48 * time.Hour, 90 * time.Minute, 20.0},
+				{72 * time.Hour, time.Hour, 18.0},
+			}
+
+			for _, st := range sessionTimes {
+				startTime := time.Now().UTC().Add(st.startOffset).Truncate(time.Hour)
+				endTime := startTime.Add(st.duration)
+
+				if err := getOrCreateSession(db, classID, startTime, endTime, maxCapacity, st.price); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	log.Println("Seeded multiple gyms, classes, and sessions data")
 	return nil
 }
 
-func seedDemoData(db *sql.DB) error {
-	gymID, err := getOrCreateGym(db, "Downtown Gym", "123 Main St", "Open 24/7 demo gym")
-	if err != nil {
-		return err
-	}
-
-	classID, maxCapacity, err := getOrCreateClass(db, gymID, "Yoga", 20)
-	if err != nil {
-		return err
-	}
-
-	startTime := time.Now().UTC().Add(24 * time.Hour).Truncate(time.Hour)
-	endTime := startTime.Add(time.Hour)
-
-	if err := getOrCreateSession(db, classID, startTime, endTime, maxCapacity, 15); err != nil {
-		return err
-	}
-
-	log.Println("Seeded demo gym, class, and session data")
-	return nil
-}
-
-func getOrCreateGym(db *sql.DB, name, address, description string) (int, error) {
+func getOrCreateGym(db *sql.DB, name, address, description string, ownerID int) (int, error) {
 	var id int
 	err := db.QueryRow(`SELECT id FROM gyms WHERE name = $1`, name).Scan(&id)
 	if err == nil {
@@ -98,10 +135,11 @@ func getOrCreateGym(db *sql.DB, name, address, description string) (int, error) 
 	}
 
 	err = db.QueryRow(
-		`INSERT INTO gyms (name, address, description) VALUES ($1, $2, $3) RETURNING id`,
+		`INSERT INTO gyms (name, address, description, owner_id) VALUES ($1, $2, $3, $4) RETURNING id`,
 		name,
 		address,
 		description,
+		ownerID,
 	).Scan(&id)
 	if err != nil {
 		return 0, fmt.Errorf("insert gym: %w", err)

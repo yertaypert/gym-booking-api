@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/lib/pq"
 	"github.com/yertaypert/gym-booking-api/internal/domain"
 )
 
@@ -13,6 +14,7 @@ type GymRepository struct {
 }
 
 var ErrGymNotFound = errors.New("gym not found")
+var ErrGymAlreadyExists = errors.New("gym already exists")
 var ErrClassNotFound = errors.New("class not found")
 var ErrClassDoesNotBelongToGym = errors.New("class does not belong to gym")
 
@@ -30,7 +32,7 @@ type Session struct {
 }
 
 func (r *GymRepository) ListGyms() ([]domain.Gym, error) {
-	rows, err := r.db.Query(`SELECT id, name, address, description FROM gyms ORDER BY id`)
+	rows, err := r.db.Query(`SELECT id, owner_id, name, address, description FROM gyms ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}
@@ -39,8 +41,12 @@ func (r *GymRepository) ListGyms() ([]domain.Gym, error) {
 	var gyms []domain.Gym
 	for rows.Next() {
 		var gym domain.Gym
-		if err := rows.Scan(&gym.ID, &gym.Name, &gym.Address, &gym.Description); err != nil {
+		var ownerID sql.NullInt64
+		if err := rows.Scan(&gym.ID, &ownerID, &gym.Name, &gym.Address, &gym.Description); err != nil {
 			return nil, err
+		}
+		if ownerID.Valid {
+			gym.OwnerID = int(ownerID.Int64)
 		}
 		gyms = append(gyms, gym)
 	}
@@ -50,14 +56,24 @@ func (r *GymRepository) ListGyms() ([]domain.Gym, error) {
 
 func (r *GymRepository) CreateGym(gym domain.Gym) (*domain.Gym, error) {
 	created := &domain.Gym{}
+	var ownerID sql.NullInt64
 	err := r.db.QueryRow(
-		`INSERT INTO gyms (name, address, description) VALUES ($1, $2, $3) RETURNING id, name, address, description`,
+		`INSERT INTO gyms (owner_id, name, address, description) VALUES ($1, $2, $3, $4) RETURNING id, owner_id, name, address, description`,
+		gym.OwnerID,
 		gym.Name,
 		gym.Address,
 		gym.Description,
-	).Scan(&created.ID, &created.Name, &created.Address, &created.Description)
+	).Scan(&created.ID, &ownerID, &created.Name, &created.Address, &created.Description)
 	if err != nil {
+		if pgErr, ok := err.(*pq.Error); ok {
+			if pgErr.Code == "23505" {
+				return nil, ErrGymAlreadyExists
+			}
+		}
 		return nil, err
+	}
+	if ownerID.Valid {
+		created.OwnerID = int(ownerID.Int64)
 	}
 
 	return created, nil
@@ -65,19 +81,46 @@ func (r *GymRepository) CreateGym(gym domain.Gym) (*domain.Gym, error) {
 
 func (r *GymRepository) GetGymByID(id int) (*domain.Gym, error) {
 	var gym domain.Gym
+	var ownerID sql.NullInt64
 
 	err := r.db.QueryRow(
-		`SELECT id, name, address, description FROM gyms WHERE id = $1`,
+		`SELECT id, owner_id, name, address, description FROM gyms WHERE id = $1`,
 		id,
-	).Scan(&gym.ID, &gym.Name, &gym.Address, &gym.Description)
+	).Scan(&gym.ID, &ownerID, &gym.Name, &gym.Address, &gym.Description)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrGymNotFound
 		}
 		return nil, err
 	}
+	if ownerID.Valid {
+		gym.OwnerID = int(ownerID.Int64)
+	}
 
 	return &gym, nil
+}
+
+func (r *GymRepository) ListGymsByOwnerID(ownerID int) ([]domain.Gym, error) {
+	rows, err := r.db.Query(`SELECT id, owner_id, name, address, description FROM gyms WHERE owner_id = $1 ORDER BY id`, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var gyms []domain.Gym
+	for rows.Next() {
+		var gym domain.Gym
+		var ownerID sql.NullInt64
+		if err := rows.Scan(&gym.ID, &ownerID, &gym.Name, &gym.Address, &gym.Description); err != nil {
+			return nil, err
+		}
+		if ownerID.Valid {
+			gym.OwnerID = int(ownerID.Int64)
+		}
+		gyms = append(gyms, gym)
+	}
+
+	return gyms, rows.Err()
 }
 
 func (r *GymRepository) ListClassesByGymID(gymID int) ([]domain.Class, error) {
@@ -272,6 +315,22 @@ func (r *GymRepository) ensureClassBelongsToGym(gymID, classID int) error {
 
 	if class.GymID != gymID {
 		return ErrClassDoesNotBelongToGym
+	}
+
+	return nil
+}
+
+func (r *GymRepository) AssignTrainer(gymID int, trainerID int) error {
+	if err := r.ensureGymExists(gymID); err != nil {
+		return err
+	}
+
+	_, err := r.db.Exec(`INSERT INTO gym_trainers (gym_id, user_id) VALUES ($1, $2)`, gymID, trainerID)
+	if err != nil {
+		if pgErr, ok := err.(*pq.Error); ok && pgErr.Code == "23505" {
+			return errors.New("trainer is already assigned to this gym")
+		}
+		return err
 	}
 
 	return nil
