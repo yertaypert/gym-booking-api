@@ -1,1 +1,1 @@
-ALTER TABLE gyms ADD CONSTRAINT unique_gym_name UNIQUE (name);
+-- Consolidated into 000002_init.up.sql

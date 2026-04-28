@@ -1,3 +1,1 @@
-ALTER TYPE user_role ADD VALUE 'gym_owner';
-
-ALTER TABLE gyms ADD COLUMN owner_id INTEGER REFERENCES users(id) ON DELETE SET NULL;
+-- Consolidated into 000002_init.up.sql

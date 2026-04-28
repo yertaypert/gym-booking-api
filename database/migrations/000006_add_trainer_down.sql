@@ -1,1 +1,1 @@
--- no rollback for enum value addition 
+-- Consolidated into 000001_init.down.sql

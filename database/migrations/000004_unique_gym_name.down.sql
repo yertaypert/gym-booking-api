@@ -1,1 +1,1 @@
-ALTER TABLE gyms DROP CONSTRAINT unique_gym_name;
+-- Consolidated into 000001_init.down.sql

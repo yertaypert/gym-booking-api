@@ -1,1 +1,1 @@
-ALTER TYPE user_role ADD VALUE 'trainer';
+-- Consolidated into 000002_init.up.sql
