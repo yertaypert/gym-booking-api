@@ -22,7 +22,7 @@ func NewGymRepository(db *sql.DB) *GymRepository {
 	return &GymRepository{db: db}
 }
 
-type Session struct {
+type AvailableSession struct {
 	ID             int
 	GymName        string
 	ClassName      string
@@ -237,7 +237,7 @@ func (r *GymRepository) CreateSession(gymID int, session domain.Session) (*domai
 	return created, nil
 }
 
-func (r *GymRepository) GetAvailableSessions() ([]Session, error) {
+func (r *GymRepository) GetAvailableSessions() ([]AvailableSession, error) {
 	query := `
 		SELECT s.id, g.name, c.name, s.start_time, s.available_slots, s.price
 		FROM class_sessions s
@@ -251,9 +251,9 @@ func (r *GymRepository) GetAvailableSessions() ([]Session, error) {
 	}
 	defer rows.Close()
 
-	var sessions []Session
+	var sessions []AvailableSession
 	for rows.Next() {
-		var s Session
+		var s AvailableSession
 		err := rows.Scan(&s.ID, &s.GymName, &s.ClassName, &s.StartTime, &s.AvailableSlots, &s.Price)
 		if err != nil {
 			return nil, err
