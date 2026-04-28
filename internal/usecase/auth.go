@@ -6,13 +6,12 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/lib/pq"
 	"github.com/yertaypert/gym-booking-api/internal/auth"
 	"github.com/yertaypert/gym-booking-api/internal/domain"
 	"golang.org/x/crypto/bcrypt"
 )
 
-var ErrEmailAlreadyExists = errors.New("email already exists")
+var ErrEmailAlreadyExists = domain.ErrEmailAlreadyExists
 var ErrInvalidEmail = errors.New("email must be a valid address")
 var ErrInvalidFullName = errors.New("full_name is required")
 var ErrWeakPassword = errors.New("password must be at least 8 characters and include uppercase, lowercase, and a digit")
@@ -47,13 +46,6 @@ func (u *AuthUsecase) Register(email, password, fullName string) error {
 	}
 
 	_, err = u.userRepo.Create(newUser)
-	if err != nil {
-		var pqErr *pq.Error
-		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
-			return ErrEmailAlreadyExists
-		}
-	}
-
 	return err
 }
 
@@ -62,7 +54,10 @@ func (u *AuthUsecase) Login(email, password string) (string, error) {
 
 	user, err := u.userRepo.GetByEmail(email)
 	if err != nil {
-		return "", errors.New("user not found")
+		if errors.Is(err, domain.ErrUserNotFound) {
+			return "", errors.New("user not found")
+		}
+		return "", err
 	}
 
 	err = bcrypt.CompareHashAndPassword(

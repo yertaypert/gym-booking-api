@@ -2,6 +2,9 @@ package repository
 
 import (
 	"database/sql"
+	"errors"
+
+	"github.com/lib/pq"
 	"github.com/yertaypert/gym-booking-api/internal/domain"
 )
 
@@ -20,6 +23,9 @@ func (r *UserRepository) Create(u domain.User) (int, error) {
 
 	err := r.db.QueryRow(query, u.Email, u.PasswordHash, u.FullName, u.Role, u.Balance).Scan(&id)
 	if err != nil {
+		if pgErr, ok := err.(*pq.Error); ok && pgErr.Code == "23505" {
+			return 0, domain.ErrEmailAlreadyExists
+		}
 		return 0, err
 	}
 	return id, nil
@@ -31,6 +37,9 @@ func (r *UserRepository) GetByEmail(email string) (*domain.User, error) {
 
 	err := r.db.QueryRow(query, email).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.FullName, &u.Role, &u.Balance)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, domain.ErrUserNotFound
+		}
 		return nil, err
 	}
 	return u, nil
@@ -42,6 +51,9 @@ func (r *UserRepository) GetByID(id int) (*domain.User, error) {
 
 	err := r.db.QueryRow(query, id).Scan(&u.ID, &u.Email, &u.FullName, &u.Role, &u.Balance, &u.CreatedAt)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, domain.ErrUserNotFound
+		}
 		return nil, err
 	}
 	return u, nil

@@ -1,6 +1,14 @@
 package domain
 
-import "time"
+import (
+	"errors"
+	"time"
+)
+
+var (
+	ErrEmailAlreadyExists = errors.New("email already exists")
+	ErrUserNotFound       = errors.New("user not found")
+)
 
 type UserRole string
 

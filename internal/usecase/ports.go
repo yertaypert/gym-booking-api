@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/yertaypert/gym-booking-api/internal/domain"
-	"github.com/yertaypert/gym-booking-api/internal/repository"
 )
 
 type UserRepository interface {
@@ -58,7 +57,7 @@ type TransactionRepository interface {
 
 type ClassRepository interface {
 	ListDistinctClasses(ctx context.Context) ([]string, error)
-	ListGymsByClassName(ctx context.Context, name string) ([]repository.GymWithClass, error)
-	SearchSessionsByClassName(ctx context.Context, name string, startTime, endTime *time.Time) ([]repository.SessionWithGym, error)
-	GetSessionWithDetails(ctx context.Context, sessionID int) (*repository.SessionWithGym, error)
+	ListGymsByClassName(ctx context.Context, name string) ([]domain.GymWithClass, error)
+	SearchSessionsByClassName(ctx context.Context, name string, startTime, endTime *time.Time) ([]domain.SessionWithGym, error)
+	GetSessionWithDetails(ctx context.Context, sessionID int) (*domain.SessionWithGym, error)
 }

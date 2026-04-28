@@ -6,3 +6,17 @@ type Class struct {
 	Name        string `json:"name"`
 	MaxCapacity int    `json:"max_capacity"`
 }
+
+type SessionWithGym struct {
+	Session
+	GymName    string `json:"gym_name"`
+	GymAddress string `json:"gym_address"`
+	ClassName  string `json:"class_name"`
+}
+
+type GymWithClass struct {
+	GymID      int    `json:"gym_id"`
+	GymName    string `json:"gym_name"`
+	GymAddress string `json:"gym_address"`
+	ClassID    int    `json:"class_id"`
+}
