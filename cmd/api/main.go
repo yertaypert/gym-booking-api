@@ -71,7 +71,7 @@ func main() {
 
 	mux.Handle(
 		"GET /me/bookings",
-		middleware.AuthMiddleware(http.HandlerFunc(bookingHandler.MyBookings)),
+		middleware.AuthMiddleware(http.HandlerFunc(bookingHandler.GetMyBookings)),
 	)
 	mux.Handle(
 		"POST /gyms",
@@ -80,7 +80,7 @@ func main() {
 		),
 	)
 	mux.Handle(
-		"GET /my-gyms",
+		"GET /me/gyms",
 		middleware.AuthMiddleware(
 			middleware.RequireRoles(domain.RoleAdmin, domain.RoleGymOwner)(http.HandlerFunc(gymHandler.ListMyGyms)),
 		),
@@ -127,11 +127,6 @@ func main() {
 		middleware.AuthMiddleware(
 			middleware.RequireRoles(domain.RoleAdmin)(http.HandlerFunc(bookingHandler.MarkAttended)),
 		),
-	)
-	// User views their own booking history
-	mux.Handle(
-		"GET /users/me/bookings",
-		middleware.AuthMiddleware(http.HandlerFunc(bookingHandler.GetMyBookings)),
 	)
 	// Admin views all attendees for a session
 	mux.Handle(
