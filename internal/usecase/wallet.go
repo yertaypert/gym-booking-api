@@ -2,7 +2,8 @@ package usecase
 
 import (
 	"database/sql"
-	"errors"
+
+	"github.com/yertaypert/gym-booking-api/internal/domain"
 )
 
 type WalletUsecase struct {
@@ -19,7 +20,7 @@ func NewWalletUsecase(db *sql.DB, walletRepo WalletRepository) *WalletUsecase {
 
 func (u *WalletUsecase) TopUpBalance(userID int, amount float64) error {
 	if amount <= 0 {
-		return errors.New("amount must be greater than zero")
+		return domain.ErrInvalidAmount
 	}
 
 	tx, err := u.db.Begin()

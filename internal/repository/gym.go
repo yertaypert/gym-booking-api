@@ -13,11 +13,6 @@ type GymRepository struct {
 	db *sql.DB
 }
 
-var ErrGymNotFound = errors.New("gym not found")
-var ErrGymAlreadyExists = errors.New("gym already exists")
-var ErrClassNotFound = errors.New("class not found")
-var ErrClassDoesNotBelongToGym = errors.New("class does not belong to gym")
-
 func NewGymRepository(db *sql.DB) *GymRepository {
 	return &GymRepository{db: db}
 }
@@ -67,7 +62,7 @@ func (r *GymRepository) CreateGym(gym domain.Gym) (*domain.Gym, error) {
 	if err != nil {
 		if pgErr, ok := err.(*pq.Error); ok {
 			if pgErr.Code == "23505" {
-				return nil, ErrGymAlreadyExists
+				return nil, domain.ErrGymAlreadyExists
 			}
 		}
 		return nil, err
@@ -89,7 +84,7 @@ func (r *GymRepository) GetGymByID(id int) (*domain.Gym, error) {
 	).Scan(&gym.ID, &ownerID, &gym.Name, &gym.Address, &gym.Description)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrGymNotFound
+			return nil, domain.ErrGymNotFound
 		}
 		return nil, err
 	}
@@ -270,7 +265,7 @@ func (r *GymRepository) ensureGymExists(gymID int) error {
 		return err
 	}
 	if !exists {
-		return ErrGymNotFound
+		return domain.ErrGymNotFound
 	}
 	return nil
 }
@@ -282,7 +277,7 @@ func (r *GymRepository) ensureClassExists(classID int) error {
 		return err
 	}
 	if !exists {
-		return ErrClassNotFound
+		return domain.ErrClassNotFound
 	}
 	return nil
 }
@@ -295,7 +290,7 @@ func (r *GymRepository) GetClassByID(classID int) (*domain.Class, error) {
 	).Scan(&class.ID, &class.GymID, &class.Name, &class.MaxCapacity)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrClassNotFound
+			return nil, domain.ErrClassNotFound
 		}
 		return nil, err
 	}
@@ -314,7 +309,7 @@ func (r *GymRepository) ensureClassBelongsToGym(gymID, classID int) error {
 	}
 
 	if class.GymID != gymID {
-		return ErrClassDoesNotBelongToGym
+		return errors.New("class does not belong to gym")
 	}
 
 	return nil

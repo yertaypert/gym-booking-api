@@ -76,6 +76,7 @@ func main() {
 			middleware.RequireRoles(domain.RoleAdmin)(http.HandlerFunc(gymHandler.CreateGym)),
 		),
 	)
+	// List gyms that gym_owner has
 	mux.Handle(
 		"GET /me/gyms",
 		middleware.AuthMiddleware(

@@ -12,9 +12,9 @@ import (
 )
 
 var ErrEmailAlreadyExists = domain.ErrEmailAlreadyExists
-var ErrInvalidEmail = errors.New("email must be a valid address")
-var ErrInvalidFullName = errors.New("full_name is required")
-var ErrWeakPassword = errors.New("password must be at least 8 characters and include uppercase, lowercase, and a digit")
+var ErrInvalidEmail = domain.ErrInvalidEmail
+var ErrInvalidFullName = domain.ErrInvalidFullName
+var ErrWeakPassword = domain.ErrWeakPassword
 
 type AuthUsecase struct {
 	userRepo UserRepository
@@ -55,7 +55,7 @@ func (u *AuthUsecase) Login(email, password string) (string, error) {
 	user, err := u.userRepo.GetByEmail(email)
 	if err != nil {
 		if errors.Is(err, domain.ErrUserNotFound) {
-			return "", errors.New("user not found")
+			return "", domain.ErrUserNotFound
 		}
 		return "", err
 	}
@@ -65,7 +65,7 @@ func (u *AuthUsecase) Login(email, password string) (string, error) {
 		[]byte(password),
 	)
 	if err != nil {
-		return "", errors.New("invalid password")
+		return "", domain.ErrInvalidPassword
 	}
 
 	token, err := auth.GenerateJWT(user.ID, string(user.Role))

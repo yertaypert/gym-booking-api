@@ -2,7 +2,6 @@ package handler
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -73,12 +72,7 @@ func (h *GymHandler) GetGym(w http.ResponseWriter, r *http.Request) {
 
 	gym, err := h.usecase.GetGym(gymID)
 	if err != nil {
-		if errors.Is(err, usecase.ErrGymNotFound) {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		}
-
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		HandleError(w, err)
 		return
 	}
 
@@ -94,12 +88,7 @@ func (h *GymHandler) ListGymClasses(w http.ResponseWriter, r *http.Request) {
 
 	classes, err := h.usecase.ListGymClasses(gymID)
 	if err != nil {
-		if errors.Is(err, usecase.ErrGymNotFound) {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		}
-
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		HandleError(w, err)
 		return
 	}
 
@@ -121,12 +110,7 @@ func (h *GymHandler) ListClassSessions(w http.ResponseWriter, r *http.Request) {
 
 	sessions, err := h.usecase.ListClassSessions(gymID, classID)
 	if err != nil {
-		switch {
-		case errors.Is(err, usecase.ErrGymNotFound), errors.Is(err, usecase.ErrClassNotFound), errors.Is(err, usecase.ErrClassDoesNotBelongToGym):
-			http.Error(w, err.Error(), http.StatusNotFound)
-		default:
-			http.Error(w, "internal server error", http.StatusInternalServerError)
-		}
+		HandleError(w, err)
 		return
 	}
 
@@ -142,14 +126,7 @@ func (h *GymHandler) CreateGym(w http.ResponseWriter, r *http.Request) {
 
 	gym, err := h.usecase.CreateGym(req.OwnerID, req.Name, req.Address, req.Description)
 	if err != nil {
-		switch {
-		case errors.Is(err, usecase.ErrInvalidGymName), errors.Is(err, usecase.ErrInvalidOwnerID):
-			http.Error(w, err.Error(), http.StatusBadRequest)
-		case errors.Is(err, usecase.ErrGymAlreadyExists):
-			http.Error(w, err.Error(), http.StatusConflict)
-		default:
-			http.Error(w, "internal server error", http.StatusInternalServerError)
-		}
+		HandleError(w, err)
 		return
 	}
 
@@ -174,16 +151,7 @@ func (h *GymHandler) CreateClass(w http.ResponseWriter, r *http.Request) {
 
 	class, err := h.usecase.CreateClass(userID, userRole, gymID, req.Name, req.MaxCapacity)
 	if err != nil {
-		switch {
-		case errors.Is(err, usecase.ErrGymNotFound):
-			http.Error(w, err.Error(), http.StatusNotFound)
-		case errors.Is(err, usecase.ErrNotGymOwner):
-			http.Error(w, err.Error(), http.StatusForbidden)
-		case errors.Is(err, usecase.ErrInvalidClassName), errors.Is(err, usecase.ErrInvalidMaxCapacity):
-			http.Error(w, err.Error(), http.StatusBadRequest)
-		default:
-			http.Error(w, "internal server error", http.StatusInternalServerError)
-		}
+		HandleError(w, err)
 		return
 	}
 
@@ -226,16 +194,7 @@ func (h *GymHandler) CreateSession(w http.ResponseWriter, r *http.Request) {
 
 	session, err := h.usecase.CreateSession(userID, userRole, gymID, classID, startTime, endTime, req.Price)
 	if err != nil {
-		switch {
-		case errors.Is(err, usecase.ErrGymNotFound), errors.Is(err, usecase.ErrClassNotFound), errors.Is(err, usecase.ErrClassDoesNotBelongToGym):
-			http.Error(w, err.Error(), http.StatusNotFound)
-		case errors.Is(err, usecase.ErrNotGymOwner):
-			http.Error(w, err.Error(), http.StatusForbidden)
-		case errors.Is(err, usecase.ErrInvalidSessionTime), errors.Is(err, usecase.ErrInvalidSessionPrice):
-			http.Error(w, err.Error(), http.StatusBadRequest)
-		default:
-			http.Error(w, "internal server error", http.StatusInternalServerError)
-		}
+		HandleError(w, err)
 		return
 	}
 
@@ -269,7 +228,7 @@ func (h *GymHandler) AssignTrainer(w http.ResponseWriter, r *http.Request) {
 
 	err = h.usecase.AssignTrainer(gymID, req.TrainerID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		HandleError(w, err)
 		return
 	}
 

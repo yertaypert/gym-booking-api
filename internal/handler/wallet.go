@@ -39,8 +39,7 @@ func (h *WalletHandler) TopUp(w http.ResponseWriter, r *http.Request) {
 
 	err := h.walletUsecase.TopUpBalance(userID, req.Amount)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(`{"error": "` + err.Error() + `"}`))
+		HandleError(w, err)
 		return
 	}
 
