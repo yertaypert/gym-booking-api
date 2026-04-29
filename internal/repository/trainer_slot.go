@@ -15,8 +15,9 @@ type TrainerSlotRepository struct {
 func NewTrainerSlotRepository(db *sql.DB) *TrainerSlotRepository {
 	return &TrainerSlotRepository{db: db}
 }
+
 func (r *TrainerSlotRepository) GetByID(ctx context.Context, slotID int) (*domain.TrainerSlot, error) {
-	query := `SELECT id, trainer_id, start_time, end_time, status FROM trainer_slot WHERE id = 1`
+	query := `SELECT id, trainer_id, start_time, end_time, status FROM trainer_slots WHERE id = $1`
 
 	var slot domain.TrainerSlot
 	err := r.db.QueryRowContext(ctx, query, slotID).Scan(
@@ -34,8 +35,14 @@ func (r *TrainerSlotRepository) GetByID(ctx context.Context, slotID int) (*domai
 	}
 	return &slot, nil
 }
-func (r *TrainerSlotRepository) UpdateStatus(ctx context.Context, slotID int, status string) error {
-	query := `UPDATE trainer_slot SET status = %1 WHERE id = $2`
-	_, err := r.db.ExecContext(ctx, query, status, slotID)
+
+func (r *TrainerSlotRepository) UpdateStatus(ctx context.Context, tx *sql.Tx, slotID int, status string) error {
+	query := `UPDATE trainer_slots SET status = $1 WHERE id = $2`
+	var err error
+	if tx != nil {
+		_, err = tx.ExecContext(ctx, query, status, slotID)
+	} else {
+		_, err = r.db.ExecContext(ctx, query, status, slotID)
+	}
 	return err
 }

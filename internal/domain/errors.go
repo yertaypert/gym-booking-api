@@ -54,6 +54,10 @@ var (
 	ErrBookingCancelled    = errors.New("booking already cancelled")
 	ErrBookingAttended     = errors.New("attended bookings cannot be cancelled")
 
+	// Trainer
+	ErrTrainerSlotNotFound     = errors.New("trainer slot not found")
+	ErrTrainerSlotNotAvailable = errors.New("trainer slot not available")
+
 	// Wallet / Transaction
 	ErrInsufficientBalance = errors.New("insufficient balance")
 	ErrInvalidAmount       = errors.New("amount must be greater than zero")

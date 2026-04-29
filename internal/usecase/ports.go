@@ -63,8 +63,8 @@ type ClassRepository interface {
 }
 type TrainerSlotRepository interface {
 	GetByID(ctx context.Context, slotID int) (*domain.TrainerSlot, error)
-	UpdateStatus(ctx context.Context, slotID int, status string) error
+	UpdateStatus(ctx context.Context, tx *sql.Tx, slotID int, status string) error
 }
 type TrainerBookingRepository interface {
-	Create(ctx context.Context, booking *domain.TrainerBooking) error
+	Create(ctx context.Context, tx *sql.Tx, booking *domain.TrainerBooking) error
 }

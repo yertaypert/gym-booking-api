@@ -44,7 +44,7 @@ func main() {
 	classUsecase := usecase.NewClassUsecase(classRepo)
 	transactionUsecase := usecase.NewTransactionUsecase(transactionRepo)
 	walletUsecase := usecase.NewWalletUsecase(db, walletRepo)
-	trainerBookingUsecase := usecase.NewTrainerBookingUsecase(trainerSlotRepo, trainerBookingRepo)
+	trainerBookingUsecase := usecase.NewTrainerBookingUsecase(db, trainerSlotRepo, trainerBookingRepo)
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(authUsecase)
