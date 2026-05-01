@@ -34,6 +34,8 @@ func main() {
 	sessionRepo := repository.NewSessionRepository(db)
 	classRepo := repository.NewClassRepository(db)
 	transactionRepo := repository.NewTransactionRepository(db)
+	trainerSlotRepo := repository.NewTrainerSlotRepository(db)
+	trainerBookingRepo := repository.NewTrainerBookingRepository(db)
 
 	// Usecases
 	authUsecase := usecase.NewAuthUsecase(userRepo)
@@ -42,6 +44,7 @@ func main() {
 	classUsecase := usecase.NewClassUsecase(classRepo)
 	transactionUsecase := usecase.NewTransactionUsecase(transactionRepo)
 	walletUsecase := usecase.NewWalletUsecase(db, walletRepo)
+	trainerBookingUsecase := usecase.NewTrainerBookingUsecase(trainerSlotRepo, trainerBookingRepo)
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(authUsecase)
@@ -50,7 +53,7 @@ func main() {
 	classHandler := handler.NewClassHandler(classUsecase)
 	transactionHandler := handler.NewTransactionHandler(transactionUsecase)
 	walletHandler := handler.NewWalletHandler(walletUsecase)
-
+	trainerBookingHandler := handler.NewTrainerBookingHandler(trainerBookingUsecase)
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/register", authHandler.Register)
@@ -93,6 +96,10 @@ func main() {
 		middleware.AuthMiddleware(
 			middleware.RequireRoles(domain.RoleAdmin, domain.RoleGymOwner)(http.HandlerFunc(gymHandler.CreateSession)),
 		),
+	)
+	mux.Handle(
+		"POST /trainer-slots/{id}/book",
+		middleware.AuthMiddleware(http.HandlerFunc(trainerBookingHandler.BookTrainerSlot)),
 	)
 	mux.Handle(
 		"POST /sessions/{sessionId}/bookings",
