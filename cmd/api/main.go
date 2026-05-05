@@ -115,7 +115,7 @@ func main() {
 			middleware.RequireRoles(domain.RoleAdmin, domain.RoleGymOwner)(http.HandlerFunc(gymHandler.ListMyGyms)),
 		),
 	)
-	// Gym Onwer lists trainers assigned to his Gyms
+	// Gym Owner lists trainers assigned to his Gyms
 	mux.Handle(
 		"GET /me/gyms/trainers",
 		middleware.AuthMiddleware(
@@ -158,10 +158,6 @@ func main() {
 		),
 	)
 	// User makes booking
-	mux.Handle(
-		"POST /trainer-slots/{id}/book",
-		middleware.AuthMiddleware(http.HandlerFunc(trainerBookingHandler.BookTrainerSlot)),
-	)
 	mux.Handle(
 		"POST /sessions/{sessionId}/bookings",
 		middleware.AuthMiddleware(http.HandlerFunc(bookingHandler.CreateBooking)),
