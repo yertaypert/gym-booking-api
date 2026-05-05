@@ -115,6 +115,20 @@ func main() {
 			middleware.RequireRoles(domain.RoleAdmin, domain.RoleGymOwner)(http.HandlerFunc(gymHandler.ListMyGyms)),
 		),
 	)
+	// Gym Onwer lists trainers assigned to his Gyms
+	mux.Handle(
+		"GET /me/gyms/trainers",
+		middleware.AuthMiddleware(
+			middleware.RequireRoles(domain.RoleAdmin, domain.RoleGymOwner)(http.HandlerFunc(gymHandler.ListAllMyGymTrainers)),
+		),
+	)
+	// Gym Owner lists trainer assigned to his specific Gym
+	mux.Handle(
+		"GET /me/gyms/{id}/trainers",
+		middleware.AuthMiddleware(
+			middleware.RequireRoles(domain.RoleAdmin, domain.RoleGymOwner)(http.HandlerFunc(gymHandler.ListGymTrainers)),
+		),
+	)
 	// Gym Owner creates class
 	mux.Handle(
 		"POST /gyms/{id}/classes",

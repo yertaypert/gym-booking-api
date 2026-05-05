@@ -199,3 +199,38 @@ func (u *GymUsecase) AssignTrainerToSession(ctx context.Context, userID int, use
 
 	return u.sessionRepo.AssignTrainer(ctx, sessionID, trainerID)
 }
+
+func (u *GymUsecase) ListGymTrainers(userID int, userRole domain.UserRole, gymID int) ([]domain.TrainerInfo, error) {
+	gym, err := u.gymRepo.GetGymByID(gymID)
+	if err != nil {
+		return nil, err
+	}
+
+	if userRole != domain.RoleAdmin && gym.OwnerID != userID {
+		return nil, ErrNotGymOwner
+	}
+
+	return u.gymRepo.ListTrainersByGymID(gymID)
+}
+
+func (u *GymUsecase) ListAllMyGymTrainers(ownerID int) ([]domain.GymWithTrainers, error) {
+	gyms, err := u.gymRepo.ListGymsByOwnerID(ownerID)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []domain.GymWithTrainers
+	for _, g := range gyms {
+		trainers, err := u.gymRepo.ListTrainersByGymID(g.ID)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, domain.GymWithTrainers{
+			GymID:    g.ID,
+			GymName:  g.Name,
+			Trainers: trainers,
+		})
+	}
+
+	return result, nil
+}

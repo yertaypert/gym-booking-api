@@ -276,3 +276,42 @@ func (h *GymHandler) AssignTrainerToSession(w http.ResponseWriter, r *http.Reque
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(`{"message": "Trainer assigned to session successfully"}`))
 }
+
+func (h *GymHandler) ListGymTrainers(w http.ResponseWriter, r *http.Request) {
+	gymID, err := parsePathID(r, "id")
+	if err != nil {
+		http.Error(w, "invalid gym id", http.StatusBadRequest)
+		return
+	}
+
+	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	userRole, _ := r.Context().Value(middleware.UserRoleKey).(domain.UserRole)
+
+	trainers, err := h.usecase.ListGymTrainers(userID, userRole, gymID)
+	if err != nil {
+		HandleError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, trainers)
+}
+
+func (h *GymHandler) ListAllMyGymTrainers(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	gymTrainers, err := h.usecase.ListAllMyGymTrainers(userID)
+	if err != nil {
+		HandleError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, gymTrainers)
+}

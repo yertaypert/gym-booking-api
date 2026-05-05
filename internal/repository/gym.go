@@ -340,3 +340,29 @@ func (r *GymRepository) IsTrainerInGym(gymID, trainerID int) (bool, error) {
 	).Scan(&exists)
 	return exists, err
 }
+
+func (r *GymRepository) ListTrainersByGymID(gymID int) ([]domain.TrainerInfo, error) {
+	query := `
+		SELECT u.id, u.full_name, t.specialization, t.extra_fee
+		FROM users u
+		JOIN trainers t ON u.id = t.user_id
+		JOIN gym_trainers gt ON u.id = gt.user_id
+		WHERE gt.gym_id = $1
+	`
+	rows, err := r.db.Query(query, gymID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var trainers []domain.TrainerInfo
+	for rows.Next() {
+		var t domain.TrainerInfo
+		if err := rows.Scan(&t.UserID, &t.FullName, &t.Specialization, &t.ExtraFee); err != nil {
+			return nil, err
+		}
+		trainers = append(trainers, t)
+	}
+
+	return trainers, rows.Err()
+}
