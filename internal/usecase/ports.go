@@ -12,6 +12,12 @@ type UserRepository interface {
 	Create(user domain.User) (int, error)
 	GetByEmail(email string) (*domain.User, error)
 	GetByID(id int) (*domain.User, error)
+	UpdateRole(ctx context.Context, tx *sql.Tx, userID int, role domain.UserRole) error
+}
+
+type TrainerRepository interface {
+	Create(ctx context.Context, tx *sql.Tx, trainer *domain.Trainer) error
+	GetByUserID(ctx context.Context, userID int) (*domain.Trainer, error)
 }
 
 type GymRepository interface {
@@ -48,6 +54,7 @@ type SessionRepository interface {
 	GetByID(ctx context.Context, id int) (*domain.Session, error)
 	DecreaseAvailableSlots(ctx context.Context, tx *sql.Tx, sessionID int) error
 	IncreaseAvailableSlots(ctx context.Context, tx *sql.Tx, sessionID int) error
+	AssignTrainer(ctx context.Context, sessionID, trainerID int) error
 }
 
 type TransactionRepository interface {
@@ -58,13 +65,6 @@ type TransactionRepository interface {
 type ClassRepository interface {
 	ListDistinctClasses(ctx context.Context) ([]string, error)
 	ListGymsByClassName(ctx context.Context, name string) ([]domain.GymWithClass, error)
-	SearchSessionsByClassName(ctx context.Context, name string, startTime, endTime *time.Time) ([]domain.SessionWithGym, error)
+	SearchSessionsByClassName(ctx context.Context, name string, startTime, endTime *time.Time, trainerOnly bool) ([]domain.SessionWithGym, error)
 	GetSessionWithDetails(ctx context.Context, sessionID int) (*domain.SessionWithGym, error)
-}
-type TrainerSlotRepository interface {
-	GetByID(ctx context.Context, slotID int) (*domain.TrainerSlot, error)
-	UpdateStatus(ctx context.Context, tx *sql.Tx, slotID int, status string) error
-}
-type TrainerBookingRepository interface {
-	Create(ctx context.Context, tx *sql.Tx, booking *domain.TrainerBooking) error
 }

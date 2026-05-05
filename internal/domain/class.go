@@ -9,9 +9,11 @@ type Class struct {
 
 type SessionWithGym struct {
 	Session
-	GymName    string `json:"gym_name"`
-	GymAddress string `json:"gym_address"`
-	ClassName  string `json:"class_name"`
+	GymName               string `json:"gym_name"`
+	GymAddress            string `json:"gym_address"`
+	ClassName             string `json:"class_name"`
+	TrainerName           string `json:"trainer_name,omitempty"`
+	TrainerSpecialization string `json:"trainer_specialization,omitempty"`
 }
 
 type GymWithClass struct {

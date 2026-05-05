@@ -26,7 +26,6 @@ var (
 	ErrGymNotFound             = errors.New("gym not found")
 	ErrGymAlreadyExists       = errors.New("gym already exists")
 	ErrNotGymOwner             = errors.New("user is not the owner of this gym")
-	ErrTrainerAlreadyAssigned  = errors.New("trainer is already assigned to this gym")
 	ErrInvalidGymName          = errors.New("gym name is required")
 	ErrInvalidOwnerID          = errors.New("owner_id is required")
 
@@ -55,8 +54,8 @@ var (
 	ErrBookingAttended     = errors.New("attended bookings cannot be cancelled")
 
 	// Trainer
-	ErrTrainerSlotNotFound     = errors.New("trainer slot not found")
-	ErrTrainerSlotNotAvailable = errors.New("trainer slot not available")
+	ErrTrainerNotFound         = errors.New("trainer not found")
+	ErrTrainerAlreadyAssigned  = errors.New("trainer is already assigned to this gym")
 
 	// Wallet / Transaction
 	ErrInsufficientBalance = errors.New("insufficient balance")

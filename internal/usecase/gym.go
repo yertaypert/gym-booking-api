@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"context"
 	"strings"
 	"time"
 
@@ -20,11 +21,15 @@ var ErrInvalidSessionPrice = domain.ErrInvalidSessionPrice
 var ErrNotGymOwner = domain.ErrNotGymOwner
 
 type GymUsecase struct {
-	gymRepo GymRepository
+	gymRepo     GymRepository
+	sessionRepo SessionRepository
 }
 
-func NewGymUsecase(repo GymRepository) *GymUsecase {
-	return &GymUsecase{gymRepo: repo}
+func NewGymUsecase(repo GymRepository, sessionRepo SessionRepository) *GymUsecase {
+	return &GymUsecase{
+		gymRepo:     repo,
+		sessionRepo: sessionRepo,
+	}
 }
 
 func (u *GymUsecase) ListGyms() ([]domain.Gym, error) {
@@ -131,4 +136,27 @@ func (u *GymUsecase) CreateSession(userID int, userRole domain.UserRole, gymID, 
 
 func (u *GymUsecase) AssignTrainer(gymID int, trainerID int) error {
 	return u.gymRepo.AssignTrainer(gymID, trainerID)
+}
+
+func (u *GymUsecase) AssignTrainerToSession(ctx context.Context, userID int, userRole domain.UserRole, sessionID, trainerID int) error {
+	session, err := u.sessionRepo.GetByID(ctx, sessionID)
+	if err != nil {
+		return err
+	}
+
+	class, err := u.gymRepo.GetClassByID(session.ClassID)
+	if err != nil {
+		return err
+	}
+
+	gym, err := u.gymRepo.GetGymByID(class.GymID)
+	if err != nil {
+		return err
+	}
+
+	if userRole != domain.RoleAdmin && gym.OwnerID != userID {
+		return ErrNotGymOwner
+	}
+
+	return u.sessionRepo.AssignTrainer(ctx, sessionID, trainerID)
 }

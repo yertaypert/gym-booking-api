@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 
@@ -57,4 +58,15 @@ func (r *UserRepository) GetByID(id int) (*domain.User, error) {
 		return nil, err
 	}
 	return u, nil
+}
+
+func (r *UserRepository) UpdateRole(ctx context.Context, tx *sql.Tx, userID int, role domain.UserRole) error {
+	query := `UPDATE users SET role = $1 WHERE id = $2`
+	var err error
+	if tx != nil {
+		_, err = tx.ExecContext(ctx, query, role, userID)
+	} else {
+		_, err = r.db.ExecContext(ctx, query, role, userID)
+	}
+	return err
 }

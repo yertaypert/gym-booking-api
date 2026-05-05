@@ -236,3 +236,36 @@ func (h *GymHandler) AssignTrainer(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(`{"message": "Trainer assigned successfully"}`))
 }
+
+func (h *GymHandler) AssignTrainerToSession(w http.ResponseWriter, r *http.Request) {
+	sessionID, err := parsePathID(r, "id")
+	if err != nil {
+		http.Error(w, "invalid session id", http.StatusBadRequest)
+		return
+	}
+
+	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	userRole, _ := r.Context().Value(middleware.UserRoleKey).(domain.UserRole)
+
+	var req struct {
+		TrainerID int `json:"trainer_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	err = h.usecase.AssignTrainerToSession(r.Context(), userID, userRole, sessionID, req.TrainerID)
+	if err != nil {
+		HandleError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"message": "Trainer assigned to session successfully"}`))
+}

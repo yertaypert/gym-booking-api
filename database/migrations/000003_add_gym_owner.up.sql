@@ -1,1 +1,0 @@
--- Consolidated into 000002_init.up.sql

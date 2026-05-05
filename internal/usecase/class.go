@@ -27,8 +27,9 @@ func (u *ClassUsecase) SearchSessions(
 	ctx context.Context,
 	name string,
 	startTime, endTime *time.Time,
+	trainerOnly bool,
 ) ([]domain.SessionWithGym, error) {
-	return u.classRepo.SearchSessionsByClassName(ctx, name, startTime, endTime)
+	return u.classRepo.SearchSessionsByClassName(ctx, name, startTime, endTime, trainerOnly)
 }
 
 func (u *ClassUsecase) GetSession(ctx context.Context, sessionID int) (*domain.SessionWithGym, error) {
