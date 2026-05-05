@@ -115,7 +115,7 @@ func main() {
 			middleware.RequireRoles(domain.RoleAdmin, domain.RoleGymOwner)(http.HandlerFunc(gymHandler.ListMyGyms)),
 		),
 	)
-	// Gym Onwer lists trainers assigned to his Gyms
+	// Gym Owner lists trainers assigned to his Gyms
 	mux.Handle(
 		"GET /me/gyms/trainers",
 		middleware.AuthMiddleware(
