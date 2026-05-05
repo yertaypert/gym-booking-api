@@ -44,6 +44,7 @@ func main() {
 	transactionUsecase := usecase.NewTransactionUsecase(transactionRepo)
 	walletUsecase := usecase.NewWalletUsecase(db, walletRepo)
 	trainerUsecase := usecase.NewTrainerUsecase(db, userRepo, trainerRepo)
+	userUsecase := usecase.NewUserUsecase(userRepo)
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(authUsecase)
@@ -53,6 +54,7 @@ func main() {
 	transactionHandler := handler.NewTransactionHandler(transactionUsecase)
 	walletHandler := handler.NewWalletHandler(walletUsecase)
 	trainerHandler := handler.NewTrainerHandler(trainerUsecase)
+	userHandler := handler.NewUserHandler(userUsecase)
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/register", authHandler.Register)
@@ -67,6 +69,32 @@ func main() {
 	mux.HandleFunc("GET /classes/{name}", classHandler.ListGymsByClass)
 	mux.HandleFunc("GET /classes/{name}/sessions", classHandler.SearchSessions)
 	mux.HandleFunc("GET /sessions/{id}", classHandler.GetSession)
+
+	// Admin user management
+	mux.Handle(
+		"GET /admin/users",
+		middleware.AuthMiddleware(
+			middleware.RequireRoles(domain.RoleAdmin)(http.HandlerFunc(userHandler.ListUsers)),
+		),
+	)
+	mux.Handle(
+		"GET /admin/users/{id}",
+		middleware.AuthMiddleware(
+			middleware.RequireRoles(domain.RoleAdmin)(http.HandlerFunc(userHandler.GetUser)),
+		),
+	)
+	mux.Handle(
+		"PUT /admin/users/{id}",
+		middleware.AuthMiddleware(
+			middleware.RequireRoles(domain.RoleAdmin)(http.HandlerFunc(userHandler.UpdateUser)),
+		),
+	)
+	mux.Handle(
+		"DELETE /admin/users/{id}",
+		middleware.AuthMiddleware(
+			middleware.RequireRoles(domain.RoleAdmin)(http.HandlerFunc(userHandler.DeleteUser)),
+		),
+	)
 
 	// User lists bookings
 	mux.Handle(

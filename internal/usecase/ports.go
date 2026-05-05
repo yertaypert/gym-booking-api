@@ -13,6 +13,9 @@ type UserRepository interface {
 	GetByEmail(email string) (*domain.User, error)
 	GetByID(id int) (*domain.User, error)
 	UpdateRole(ctx context.Context, tx *sql.Tx, userID int, role domain.UserRole) error
+	ListAll(ctx context.Context) ([]domain.User, error)
+	Update(ctx context.Context, user *domain.User) error
+	Delete(ctx context.Context, id int) error
 }
 
 type TrainerRepository interface {

@@ -70,3 +70,35 @@ func (r *UserRepository) UpdateRole(ctx context.Context, tx *sql.Tx, userID int,
 	}
 	return err
 }
+
+func (r *UserRepository) ListAll(ctx context.Context) ([]domain.User, error) {
+	query := `SELECT id, email, full_name, role, balance, created_at FROM users ORDER BY id ASC`
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []domain.User
+	for rows.Next() {
+		var u domain.User
+		err := rows.Scan(&u.ID, &u.Email, &u.FullName, &u.Role, &u.Balance, &u.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	return users, nil
+}
+
+func (r *UserRepository) Update(ctx context.Context, u *domain.User) error {
+	query := `UPDATE users SET email = $1, full_name = $2, role = $3, balance = $4 WHERE id = $5`
+	_, err := r.db.ExecContext(ctx, query, u.Email, u.FullName, u.Role, u.Balance, u.ID)
+	return err
+}
+
+func (r *UserRepository) Delete(ctx context.Context, id int) error {
+	query := `DELETE FROM users WHERE id = $1`
+	_, err := r.db.ExecContext(ctx, query, id)
+	return err
+}
