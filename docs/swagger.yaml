@@ -80,6 +80,23 @@ components:
         type: { type: string, enum: [top_up, freeze, payment, refund] }
         created_at: { type: string, format: date-time }
 
+    TrainerInfo:
+      type: object
+      properties:
+        user_id: { type: integer }
+        full_name: { type: string }
+        specialization: { type: string }
+        extra_fee: { type: number, format: float }
+
+    GymWithTrainers:
+      type: object
+      properties:
+        gym_id: { type: integer }
+        gym_name: { type: string }
+        trainers:
+          type: array
+          items: { $ref: '#/components/schemas/TrainerInfo' }
+
 paths:
   /register:
     post:
@@ -394,6 +411,104 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/Transaction' }
+
+  /admin/users/{id}/promote-trainer:
+    post:
+      summary: Promote a user to trainer (Admin only)
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [specialization, extra_fee]
+              properties:
+                specialization: { type: string }
+                extra_fee: { type: number, format: float }
+      responses:
+        200: { description: User promoted }
+
+  /me/gyms/trainers:
+    get:
+      summary: View all trainers in your gyms (Gym Owner/Admin only)
+      tags: [Gym Owner]
+      security: [{ bearerAuth: [] }]
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/GymWithTrainers' }
+
+  /me/gyms/{id}/trainers:
+    get:
+      summary: View trainers in a specific gym (Gym Owner/Admin only)
+      tags: [Gym Owner]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/TrainerInfo' }
+
+  /gyms/{id}/trainers:
+    post:
+      summary: Assign a trainer to a gym (Gym Owner/Admin only)
+      tags: [Gym Owner]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [trainer_id]
+              properties:
+                trainer_id: { type: integer }
+      responses:
+        200: { description: Trainer assigned }
+
+  /sessions/{id}/assign-trainer:
+    post:
+      summary: Assign a trainer to a specific session (Gym Owner/Admin only)
+      tags: [Gym Owner]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [trainer_id]
+              properties:
+                trainer_id: { type: integer }
+      responses:
+        200: { description: Trainer assigned to session }
 
   /classes:
     get:
