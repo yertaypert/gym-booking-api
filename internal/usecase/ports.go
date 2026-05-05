@@ -6,13 +6,21 @@ import (
 	"time"
 
 	"github.com/yertaypert/gym-booking-api/internal/domain"
-	"github.com/yertaypert/gym-booking-api/internal/repository"
 )
 
 type UserRepository interface {
 	Create(user domain.User) (int, error)
 	GetByEmail(email string) (*domain.User, error)
 	GetByID(id int) (*domain.User, error)
+	UpdateRole(ctx context.Context, tx *sql.Tx, userID int, role domain.UserRole) error
+	ListAll(ctx context.Context) ([]domain.User, error)
+	Update(ctx context.Context, user *domain.User) error
+	Delete(ctx context.Context, id int) error
+}
+
+type TrainerRepository interface {
+	Create(ctx context.Context, tx *sql.Tx, trainer *domain.Trainer) error
+	GetByUserID(ctx context.Context, userID int) (*domain.Trainer, error)
 }
 
 type GymRepository interface {
@@ -26,6 +34,8 @@ type GymRepository interface {
 	CreateSession(gymID int, session domain.Session) (*domain.Session, error)
 	ListGymsByOwnerID(ownerID int) ([]domain.Gym, error)
 	AssignTrainer(gymID int, trainerID int) error
+	IsTrainerInGym(gymID, trainerID int) (bool, error)
+	ListTrainersByGymID(gymID int) ([]domain.TrainerInfo, error)
 }
 
 type BookingRepository interface {
@@ -49,6 +59,7 @@ type SessionRepository interface {
 	GetByID(ctx context.Context, id int) (*domain.Session, error)
 	DecreaseAvailableSlots(ctx context.Context, tx *sql.Tx, sessionID int) error
 	IncreaseAvailableSlots(ctx context.Context, tx *sql.Tx, sessionID int) error
+	AssignTrainer(ctx context.Context, sessionID, trainerID int) error
 }
 
 type TransactionRepository interface {
@@ -58,9 +69,9 @@ type TransactionRepository interface {
 
 type ClassRepository interface {
 	ListDistinctClasses(ctx context.Context) ([]string, error)
-	ListGymsByClassName(ctx context.Context, name string) ([]repository.GymWithClass, error)
-	SearchSessionsByClassName(ctx context.Context, name string, startTime, endTime *time.Time) ([]repository.SessionWithGym, error)
-	GetSessionWithDetails(ctx context.Context, sessionID int) (*repository.SessionWithGym, error)
+	ListGymsByClassName(ctx context.Context, name string) ([]domain.GymWithClass, error)
+	SearchSessionsByClassName(ctx context.Context, name string, startTime, endTime *time.Time, trainerOnly bool) ([]domain.SessionWithGym, error)
+	GetSessionWithDetails(ctx context.Context, sessionID int) (*domain.SessionWithGym, error)
 }
 type TrainerSlotRepository interface {
 	GetByID(ctx context.Context, slotID int) (*domain.TrainerSlot, error)

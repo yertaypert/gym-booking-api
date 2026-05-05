@@ -17,13 +17,14 @@ func NewSessionRepository(db *sql.DB) *sqlSessionRepository {
 }
 
 func (r *sqlSessionRepository) GetByID(ctx context.Context, sessionID int) (*domain.Session, error) {
-	query := `SELECT id, class_id, start_time, end_time, available_slots, price, status
+	query := `SELECT id, class_id, trainer_id, start_time, end_time, available_slots, price, status
               FROM class_sessions
               WHERE id = $1`
 	var session domain.Session
 	err := r.db.QueryRowContext(ctx, query, sessionID).Scan(
 		&session.ID,
 		&session.ClassID,
+		&session.TrainerID,
 		&session.StartTime,
 		&session.EndTime,
 		&session.AvailableSlots,
@@ -34,6 +35,12 @@ func (r *sqlSessionRepository) GetByID(ctx context.Context, sessionID int) (*dom
 		return nil, err
 	}
 	return &session, nil
+}
+
+func (r *sqlSessionRepository) AssignTrainer(ctx context.Context, sessionID, trainerID int) error {
+	query := `UPDATE class_sessions SET trainer_id = $1 WHERE id = $2`
+	_, err := r.db.ExecContext(ctx, query, trainerID, sessionID)
+	return err
 }
 
 func (r *sqlSessionRepository) DecreaseAvailableSlots(ctx context.Context, tx *sql.Tx, sessionID int) error {

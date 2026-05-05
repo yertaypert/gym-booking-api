@@ -10,13 +10,16 @@ import (
 )
 
 var (
-	ErrBookingNotFound      = errors.New("booking not found")
-	ErrBookingForbidden     = errors.New("booking does not belong to user")
-	ErrSessionNotActive     = errors.New("session is not active")
-	ErrSessionInPast        = errors.New("cannot book a session that has already ended")
-	ErrAlreadyAttended      = errors.New("attendance already marked for this booking")
-	ErrSessionNotStartedYet = errors.New("session has not started yet — cannot mark attendance")
-	ErrBookingNotConfirmed  = errors.New("only confirmed bookings can be marked as attended")
+	ErrBookingNotFound      = domain.ErrBookingNotFound
+	ErrBookingForbidden     = domain.ErrBookingForbidden
+	ErrSessionNotActive     = domain.ErrSessionNotActive
+	ErrSessionInPast        = domain.ErrSessionInPast
+	ErrAlreadyAttended      = domain.ErrAlreadyAttended
+	ErrSessionNotStartedYet = domain.ErrSessionNotStarted
+	ErrBookingNotConfirmed  = domain.ErrBookingNotConfirmed
+	ErrNoAvailableSlots     = domain.ErrNoAvailableSlots
+	ErrInsufficientBalance  = domain.ErrInsufficientBalance
+	ErrAlreadyBooked        = domain.ErrAlreadyBooked
 )
 
 type BookingUsecase struct {
@@ -81,10 +84,10 @@ func (u *BookingUsecase) CreateBooking(ctx context.Context, userID, sessionID in
 		return 0, ErrSessionInPast
 	}
 	if session.AvailableSlots <= 0 {
-		return 0, errors.New("no available slots")
+		return 0, ErrNoAvailableSlots
 	}
 	if user.Balance < session.Price {
-		return 0, errors.New("insufficient balance")
+		return 0, ErrInsufficientBalance
 	}
 
 	// Explicit duplicate check before hitting the DB constraint so we can
@@ -94,7 +97,7 @@ func (u *BookingUsecase) CreateBooking(ctx context.Context, userID, sessionID in
 		return 0, err
 	}
 	if duplicate {
-		return 0, errors.New("you are already booked for this session")
+		return 0, ErrAlreadyBooked
 	}
 	// —————————————————————————————————————————————————————————————————————————
 
@@ -145,10 +148,10 @@ func (u *BookingUsecase) CancelBooking(ctx context.Context, requesterID, booking
 		return ErrBookingForbidden
 	}
 	if booking.Status == "cancelled" {
-		return errors.New("booking already cancelled")
+		return domain.ErrBookingCancelled
 	}
 	if booking.Status == "attended" {
-		return errors.New("attended bookings cannot be cancelled")
+		return domain.ErrBookingAttended
 	}
 
 	session, err := u.sessionRepo.GetByID(ctx, booking.SessionID)
@@ -180,6 +183,7 @@ func (u *BookingUsecase) CancelBooking(ctx context.Context, requesterID, booking
 
 	return tx.Commit()
 }
+
 func (u *BookingUsecase) GetUserBookings(ctx context.Context, userID int) ([]domain.Booking, error) {
 	return u.bookingRepo.GetByUserID(ctx, userID)
 }
@@ -236,7 +240,7 @@ func (u *BookingUsecase) GetSessionAttendees(ctx context.Context, sessionID int)
 	// Verify session exists first.
 	if _, err := u.sessionRepo.GetByID(ctx, sessionID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, errors.New("session not found")
+			return nil, domain.ErrSessionNotFound
 		}
 		return nil, err
 	}

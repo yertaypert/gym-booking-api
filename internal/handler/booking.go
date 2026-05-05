@@ -2,7 +2,6 @@ package handler
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 
 	"github.com/yertaypert/gym-booking-api/internal/domain"
@@ -38,12 +37,7 @@ func (h *BookingHandler) CreateBooking(w http.ResponseWriter, r *http.Request) {
 	}
 	bookingID, err := h.bookingUsecase.CreateBooking(r.Context(), userID, sessionID)
 	if err != nil {
-		switch {
-		case errors.Is(err, usecase.ErrSessionNotActive), errors.Is(err, usecase.ErrSessionInPast):
-			http.Error(w, err.Error(), http.StatusConflict)
-		default:
-			http.Error(w, err.Error(), http.StatusBadRequest)
-		}
+		HandleError(w, err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -75,14 +69,7 @@ func (h *BookingHandler) CancelBooking(w http.ResponseWriter, r *http.Request) {
 	}
 	err = h.bookingUsecase.CancelBooking(r.Context(), userID, bookingID, role == domain.RoleAdmin)
 	if err != nil {
-		switch {
-		case errors.Is(err, usecase.ErrBookingNotFound):
-			http.Error(w, err.Error(), http.StatusNotFound)
-		case errors.Is(err, usecase.ErrBookingForbidden):
-			http.Error(w, err.Error(), http.StatusForbidden)
-		default:
-			http.Error(w, err.Error(), http.StatusBadRequest)
-		}
+		HandleError(w, err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -99,16 +86,7 @@ func (h *BookingHandler) MarkAttended(w http.ResponseWriter, r *http.Request) {
 	}
 	err = h.bookingUsecase.MarkAttended(r.Context(), bookingID)
 	if err != nil {
-		switch {
-		case errors.Is(err, usecase.ErrBookingNotFound):
-			http.Error(w, err.Error(), http.StatusNotFound)
-		case errors.Is(err, usecase.ErrAlreadyAttended),
-			errors.Is(err, usecase.ErrBookingNotConfirmed),
-			errors.Is(err, usecase.ErrSessionNotStartedYet):
-			http.Error(w, err.Error(), http.StatusConflict)
-		default:
-			http.Error(w, err.Error(), http.StatusBadRequest)
-		}
+		HandleError(w, err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -125,7 +103,7 @@ func (h *BookingHandler) GetMyBookings(w http.ResponseWriter, r *http.Request) {
 	}
 	bookings, err := h.bookingUsecase.GetMyBookings(r.Context(), userID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		HandleError(w, err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -142,7 +120,7 @@ func (h *BookingHandler) GetSessionAttendees(w http.ResponseWriter, r *http.Requ
 	}
 	attendees, err := h.bookingUsecase.GetSessionAttendees(r.Context(), sessionID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		HandleError(w, err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -169,12 +147,7 @@ func (h *BookingHandler) ListGymBookings(w http.ResponseWriter, r *http.Request)
 
 	bookings, err := h.bookingUsecase.ListGymBookings(r.Context(), userID, role, gymID)
 	if err != nil {
-		switch {
-		case errors.Is(err, usecase.ErrBookingForbidden):
-			http.Error(w, err.Error(), http.StatusForbidden)
-		default:
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
+		HandleError(w, err)
 		return
 	}
 

@@ -1,15 +1,8 @@
-CREATE TABLE trainers (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES users(id) UNIQUE,
-    specialization VARCHAR(50),
-    extra_fee NUMERIC(10,2) NOT NULL
-);
+ALTER TABLE class_sessions DROP COLUMN IF EXISTS trainer_id;
 
-CREATE TABLE gym_trainers (
-    gym_id INTEGER REFERENCES gyms(id) ON DELETE CASCADE,
-    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-    PRIMARY KEY (gym_id, user_id)
-);
+-- We don't necessarily want to bring back the broken tables in a down migration 
+-- unless specifically requested, but for completeness:
+CREATE TYPE slot_status AS ENUM ('available', 'booked', 'canceled');
 
 CREATE TABLE trainer_slots (
     id SERIAL PRIMARY KEY,
@@ -18,8 +11,6 @@ CREATE TABLE trainer_slots (
     end_time TIMESTAMP NOT NULL,
     status VARCHAR(50) NOT NULL
 );
-
-CREATE TYPE slot_status AS ENUM ('available', 'booked', 'canceled');
 
 CREATE TABLE trainer_bookings (
     id SERIAL PRIMARY KEY,

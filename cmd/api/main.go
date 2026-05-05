@@ -34,17 +34,17 @@ func main() {
 	sessionRepo := repository.NewSessionRepository(db)
 	classRepo := repository.NewClassRepository(db)
 	transactionRepo := repository.NewTransactionRepository(db)
-	trainerSlotRepo := repository.NewTrainerSlotRepository(db)
-	trainerBookingRepo := repository.NewTrainerBookingRepository(db)
+	trainerRepo := repository.NewTrainerRepository(db)
 
 	// Usecases
 	authUsecase := usecase.NewAuthUsecase(userRepo)
-	gymUsecase := usecase.NewGymUsecase(gymRepo)
+	gymUsecase := usecase.NewGymUsecase(gymRepo, sessionRepo, userRepo)
 	bookingUsecase := usecase.NewBookingUsecase(db, bookingRepo, walletRepo, userRepo, sessionRepo, gymRepo)
 	classUsecase := usecase.NewClassUsecase(classRepo)
 	transactionUsecase := usecase.NewTransactionUsecase(transactionRepo)
 	walletUsecase := usecase.NewWalletUsecase(db, walletRepo)
-	trainerBookingUsecase := usecase.NewTrainerBookingUsecase(trainerSlotRepo, trainerBookingRepo)
+	trainerUsecase := usecase.NewTrainerUsecase(db, userRepo, trainerRepo)
+	userUsecase := usecase.NewUserUsecase(userRepo)
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(authUsecase)
@@ -53,7 +53,8 @@ func main() {
 	classHandler := handler.NewClassHandler(classUsecase)
 	transactionHandler := handler.NewTransactionHandler(transactionUsecase)
 	walletHandler := handler.NewWalletHandler(walletUsecase)
-	trainerBookingHandler := handler.NewTrainerBookingHandler(trainerBookingUsecase)
+	trainerHandler := handler.NewTrainerHandler(trainerUsecase)
+	userHandler := handler.NewUserHandler(userUsecase)
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/register", authHandler.Register)
@@ -69,34 +70,94 @@ func main() {
 	mux.HandleFunc("GET /classes/{name}/sessions", classHandler.SearchSessions)
 	mux.HandleFunc("GET /sessions/{id}", classHandler.GetSession)
 
+	// Admin user management
+	mux.Handle(
+		"GET /admin/users",
+		middleware.AuthMiddleware(
+			middleware.RequireRoles(domain.RoleAdmin)(http.HandlerFunc(userHandler.ListUsers)),
+		),
+	)
+	mux.Handle(
+		"GET /admin/users/{id}",
+		middleware.AuthMiddleware(
+			middleware.RequireRoles(domain.RoleAdmin)(http.HandlerFunc(userHandler.GetUser)),
+		),
+	)
+	mux.Handle(
+		"PUT /admin/users/{id}",
+		middleware.AuthMiddleware(
+			middleware.RequireRoles(domain.RoleAdmin)(http.HandlerFunc(userHandler.UpdateUser)),
+		),
+	)
+	mux.Handle(
+		"DELETE /admin/users/{id}",
+		middleware.AuthMiddleware(
+			middleware.RequireRoles(domain.RoleAdmin)(http.HandlerFunc(userHandler.DeleteUser)),
+		),
+	)
+
+	// User lists bookings
 	mux.Handle(
 		"GET /me/bookings",
 		middleware.AuthMiddleware(http.HandlerFunc(bookingHandler.GetMyBookings)),
 	)
+	// Admin creates gym
 	mux.Handle(
 		"POST /gyms",
 		middleware.AuthMiddleware(
 			middleware.RequireRoles(domain.RoleAdmin)(http.HandlerFunc(gymHandler.CreateGym)),
 		),
 	)
+	// Gym Owner lists his gyms
 	mux.Handle(
 		"GET /me/gyms",
 		middleware.AuthMiddleware(
 			middleware.RequireRoles(domain.RoleAdmin, domain.RoleGymOwner)(http.HandlerFunc(gymHandler.ListMyGyms)),
 		),
 	)
+	// Gym Onwer lists trainers assigned to his Gyms
+	mux.Handle(
+		"GET /me/gyms/trainers",
+		middleware.AuthMiddleware(
+			middleware.RequireRoles(domain.RoleAdmin, domain.RoleGymOwner)(http.HandlerFunc(gymHandler.ListAllMyGymTrainers)),
+		),
+	)
+	// Gym Owner lists trainer assigned to his specific Gym
+	mux.Handle(
+		"GET /me/gyms/{id}/trainers",
+		middleware.AuthMiddleware(
+			middleware.RequireRoles(domain.RoleAdmin, domain.RoleGymOwner)(http.HandlerFunc(gymHandler.ListGymTrainers)),
+		),
+	)
+	// Gym Owner creates class
 	mux.Handle(
 		"POST /gyms/{id}/classes",
 		middleware.AuthMiddleware(
 			middleware.RequireRoles(domain.RoleAdmin, domain.RoleGymOwner)(http.HandlerFunc(gymHandler.CreateClass)),
 		),
 	)
+	// Gym Owner creates session
 	mux.Handle(
 		"POST /gyms/{gymId}/classes/{classId}/sessions",
 		middleware.AuthMiddleware(
 			middleware.RequireRoles(domain.RoleAdmin, domain.RoleGymOwner)(http.HandlerFunc(gymHandler.CreateSession)),
 		),
 	)
+	// Gym Owner assigns trainer to session
+	mux.Handle(
+		"POST /sessions/{id}/assign-trainer",
+		middleware.AuthMiddleware(
+			middleware.RequireRoles(domain.RoleAdmin, domain.RoleGymOwner)(http.HandlerFunc(gymHandler.AssignTrainerToSession)),
+		),
+	)
+	// Admin promotes user to trainer
+	mux.Handle(
+		"POST /admin/users/{id}/promote-trainer",
+		middleware.AuthMiddleware(
+			middleware.RequireRoles(domain.RoleAdmin)(http.HandlerFunc(trainerHandler.PromoteToTrainer)),
+		),
+	)
+	// User makes booking
 	mux.Handle(
 		"POST /trainer-slots/{id}/book",
 		middleware.AuthMiddleware(http.HandlerFunc(trainerBookingHandler.BookTrainerSlot)),
@@ -105,16 +166,19 @@ func main() {
 		"POST /sessions/{sessionId}/bookings",
 		middleware.AuthMiddleware(http.HandlerFunc(bookingHandler.CreateBooking)),
 	)
+	// User cancels booking
 	mux.Handle(
 		"POST /bookings/{bookingId}/cancel",
 		middleware.AuthMiddleware(http.HandlerFunc(bookingHandler.CancelBooking)),
 	)
+	//
 	mux.Handle(
 		"GET /gyms/{id}/bookings",
 		middleware.AuthMiddleware(
 			middleware.RequireRoles(domain.RoleAdmin, domain.RoleGymOwner)(http.HandlerFunc(bookingHandler.ListGymBookings)),
 		),
 	)
+	// Gym owner assigns trainer to his gym
 	mux.Handle(
 		"POST /gyms/{id}/trainers",
 		middleware.AuthMiddleware(

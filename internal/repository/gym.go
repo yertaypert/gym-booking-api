@@ -13,16 +13,11 @@ type GymRepository struct {
 	db *sql.DB
 }
 
-var ErrGymNotFound = errors.New("gym not found")
-var ErrGymAlreadyExists = errors.New("gym already exists")
-var ErrClassNotFound = errors.New("class not found")
-var ErrClassDoesNotBelongToGym = errors.New("class does not belong to gym")
-
 func NewGymRepository(db *sql.DB) *GymRepository {
 	return &GymRepository{db: db}
 }
 
-type Session struct {
+type AvailableSession struct {
 	ID             int
 	GymName        string
 	ClassName      string
@@ -67,7 +62,7 @@ func (r *GymRepository) CreateGym(gym domain.Gym) (*domain.Gym, error) {
 	if err != nil {
 		if pgErr, ok := err.(*pq.Error); ok {
 			if pgErr.Code == "23505" {
-				return nil, ErrGymAlreadyExists
+				return nil, domain.ErrGymAlreadyExists
 			}
 		}
 		return nil, err
@@ -89,7 +84,7 @@ func (r *GymRepository) GetGymByID(id int) (*domain.Gym, error) {
 	).Scan(&gym.ID, &ownerID, &gym.Name, &gym.Address, &gym.Description)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrGymNotFound
+			return nil, domain.ErrGymNotFound
 		}
 		return nil, err
 	}
@@ -237,7 +232,7 @@ func (r *GymRepository) CreateSession(gymID int, session domain.Session) (*domai
 	return created, nil
 }
 
-func (r *GymRepository) GetAvailableSessions() ([]Session, error) {
+func (r *GymRepository) GetAvailableSessions() ([]AvailableSession, error) {
 	query := `
 		SELECT s.id, g.name, c.name, s.start_time, s.available_slots, s.price
 		FROM class_sessions s
@@ -251,9 +246,9 @@ func (r *GymRepository) GetAvailableSessions() ([]Session, error) {
 	}
 	defer rows.Close()
 
-	var sessions []Session
+	var sessions []AvailableSession
 	for rows.Next() {
-		var s Session
+		var s AvailableSession
 		err := rows.Scan(&s.ID, &s.GymName, &s.ClassName, &s.StartTime, &s.AvailableSlots, &s.Price)
 		if err != nil {
 			return nil, err
@@ -270,7 +265,7 @@ func (r *GymRepository) ensureGymExists(gymID int) error {
 		return err
 	}
 	if !exists {
-		return ErrGymNotFound
+		return domain.ErrGymNotFound
 	}
 	return nil
 }
@@ -282,7 +277,7 @@ func (r *GymRepository) ensureClassExists(classID int) error {
 		return err
 	}
 	if !exists {
-		return ErrClassNotFound
+		return domain.ErrClassNotFound
 	}
 	return nil
 }
@@ -295,7 +290,7 @@ func (r *GymRepository) GetClassByID(classID int) (*domain.Class, error) {
 	).Scan(&class.ID, &class.GymID, &class.Name, &class.MaxCapacity)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrClassNotFound
+			return nil, domain.ErrClassNotFound
 		}
 		return nil, err
 	}
@@ -314,7 +309,7 @@ func (r *GymRepository) ensureClassBelongsToGym(gymID, classID int) error {
 	}
 
 	if class.GymID != gymID {
-		return ErrClassDoesNotBelongToGym
+		return errors.New("class does not belong to gym")
 	}
 
 	return nil
@@ -334,4 +329,40 @@ func (r *GymRepository) AssignTrainer(gymID int, trainerID int) error {
 	}
 
 	return nil
+}
+
+func (r *GymRepository) IsTrainerInGym(gymID, trainerID int) (bool, error) {
+	var exists bool
+	err := r.db.QueryRow(
+		`SELECT EXISTS(SELECT 1 FROM gym_trainers WHERE gym_id = $1 AND user_id = $2)`,
+		gymID,
+		trainerID,
+	).Scan(&exists)
+	return exists, err
+}
+
+func (r *GymRepository) ListTrainersByGymID(gymID int) ([]domain.TrainerInfo, error) {
+	query := `
+		SELECT u.id, u.full_name, t.specialization, t.extra_fee
+		FROM users u
+		JOIN trainers t ON u.id = t.user_id
+		JOIN gym_trainers gt ON u.id = gt.user_id
+		WHERE gt.gym_id = $1
+	`
+	rows, err := r.db.Query(query, gymID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var trainers []domain.TrainerInfo
+	for rows.Next() {
+		var t domain.TrainerInfo
+		if err := rows.Scan(&t.UserID, &t.FullName, &t.Specialization, &t.ExtraFee); err != nil {
+			return nil, err
+		}
+		trainers = append(trainers, t)
+	}
+
+	return trainers, rows.Err()
 }
