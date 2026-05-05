@@ -159,6 +159,10 @@ func main() {
 	)
 	// User makes booking
 	mux.Handle(
+		"POST /trainer-slots/{id}/book",
+		middleware.AuthMiddleware(http.HandlerFunc(trainerBookingHandler.BookTrainerSlot)),
+	)
+	mux.Handle(
 		"POST /sessions/{sessionId}/bookings",
 		middleware.AuthMiddleware(http.HandlerFunc(bookingHandler.CreateBooking)),
 	)
