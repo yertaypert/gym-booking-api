@@ -330,3 +330,13 @@ func (r *GymRepository) AssignTrainer(gymID int, trainerID int) error {
 
 	return nil
 }
+
+func (r *GymRepository) IsTrainerInGym(gymID, trainerID int) (bool, error) {
+	var exists bool
+	err := r.db.QueryRow(
+		`SELECT EXISTS(SELECT 1 FROM gym_trainers WHERE gym_id = $1 AND user_id = $2)`,
+		gymID,
+		trainerID,
+	).Scan(&exists)
+	return exists, err
+}

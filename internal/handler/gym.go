@@ -218,6 +218,13 @@ func (h *GymHandler) AssignTrainer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	userRole, _ := r.Context().Value(middleware.UserRoleKey).(domain.UserRole)
+
 	var req struct {
 		TrainerID int `json:"trainer_id"`
 	}
@@ -226,7 +233,7 @@ func (h *GymHandler) AssignTrainer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.usecase.AssignTrainer(gymID, req.TrainerID)
+	err = h.usecase.AssignTrainer(r.Context(), userID, userRole, gymID, req.TrainerID)
 	if err != nil {
 		HandleError(w, err)
 		return

@@ -56,6 +56,8 @@ var (
 	// Trainer
 	ErrTrainerNotFound         = errors.New("trainer not found")
 	ErrTrainerAlreadyAssigned  = errors.New("trainer is already assigned to this gym")
+	ErrTrainerNotAssignedToGym = errors.New("trainer is not assigned to this gym")
+	ErrUserIsNotTrainer        = errors.New("user does not have trainer role")
 
 	// Wallet / Transaction
 	ErrInsufficientBalance = errors.New("insufficient balance")

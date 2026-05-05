@@ -19,16 +19,20 @@ var ErrInvalidMaxCapacity = domain.ErrInvalidMaxCapacity
 var ErrInvalidSessionTime = domain.ErrInvalidSessionTime
 var ErrInvalidSessionPrice = domain.ErrInvalidSessionPrice
 var ErrNotGymOwner = domain.ErrNotGymOwner
+var ErrUserIsNotTrainer = domain.ErrUserIsNotTrainer
+var ErrTrainerNotAssignedToGym = domain.ErrTrainerNotAssignedToGym
 
 type GymUsecase struct {
 	gymRepo     GymRepository
 	sessionRepo SessionRepository
+	userRepo    UserRepository
 }
 
-func NewGymUsecase(repo GymRepository, sessionRepo SessionRepository) *GymUsecase {
+func NewGymUsecase(repo GymRepository, sessionRepo SessionRepository, userRepo UserRepository) *GymUsecase {
 	return &GymUsecase{
 		gymRepo:     repo,
 		sessionRepo: sessionRepo,
+		userRepo:    userRepo,
 	}
 }
 
@@ -134,7 +138,25 @@ func (u *GymUsecase) CreateSession(userID int, userRole domain.UserRole, gymID, 
 	return u.gymRepo.CreateSession(gymID, session)
 }
 
-func (u *GymUsecase) AssignTrainer(gymID int, trainerID int) error {
+func (u *GymUsecase) AssignTrainer(ctx context.Context, userID int, userRole domain.UserRole, gymID int, trainerID int) error {
+	gym, err := u.gymRepo.GetGymByID(gymID)
+	if err != nil {
+		return err
+	}
+
+	if userRole != domain.RoleAdmin && gym.OwnerID != userID {
+		return ErrNotGymOwner
+	}
+
+	trainer, err := u.userRepo.GetByID(trainerID)
+	if err != nil {
+		return err
+	}
+
+	if trainer.Role != domain.RoleTrainer {
+		return ErrUserIsNotTrainer
+	}
+
 	return u.gymRepo.AssignTrainer(gymID, trainerID)
 }
 
@@ -156,6 +178,23 @@ func (u *GymUsecase) AssignTrainerToSession(ctx context.Context, userID int, use
 
 	if userRole != domain.RoleAdmin && gym.OwnerID != userID {
 		return ErrNotGymOwner
+	}
+
+	trainer, err := u.userRepo.GetByID(trainerID)
+	if err != nil {
+		return err
+	}
+
+	if trainer.Role != domain.RoleTrainer {
+		return ErrUserIsNotTrainer
+	}
+
+	isAssigned, err := u.gymRepo.IsTrainerInGym(gym.ID, trainerID)
+	if err != nil {
+		return err
+	}
+	if !isAssigned {
+		return ErrTrainerNotAssignedToGym
 	}
 
 	return u.sessionRepo.AssignTrainer(ctx, sessionID, trainerID)

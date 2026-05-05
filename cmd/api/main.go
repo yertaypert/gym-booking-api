@@ -38,7 +38,7 @@ func main() {
 
 	// Usecases
 	authUsecase := usecase.NewAuthUsecase(userRepo)
-	gymUsecase := usecase.NewGymUsecase(gymRepo, sessionRepo)
+	gymUsecase := usecase.NewGymUsecase(gymRepo, sessionRepo, userRepo)
 	bookingUsecase := usecase.NewBookingUsecase(db, bookingRepo, walletRepo, userRepo, sessionRepo, gymRepo)
 	classUsecase := usecase.NewClassUsecase(classRepo)
 	transactionUsecase := usecase.NewTransactionUsecase(transactionRepo)
@@ -160,6 +160,7 @@ func main() {
 			middleware.RequireRoles(domain.RoleAdmin, domain.RoleGymOwner)(http.HandlerFunc(bookingHandler.ListGymBookings)),
 		),
 	)
+	// Gym owner assigns trainer to his gym
 	mux.Handle(
 		"POST /gyms/{id}/trainers",
 		middleware.AuthMiddleware(

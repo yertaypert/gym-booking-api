@@ -34,7 +34,8 @@ func HandleError(w http.ResponseWriter, err error) {
 		errors.Is(err, domain.ErrBookingNotConfirmed),
 		errors.Is(err, domain.ErrBookingCancelled),
 		errors.Is(err, domain.ErrBookingAttended),
-		errors.Is(err, domain.ErrTrainerAlreadyAssigned):
+		errors.Is(err, domain.ErrTrainerAlreadyAssigned),
+		errors.Is(err, domain.ErrTrainerNotAssignedToGym):
 		status = http.StatusConflict
 
 	// Bad Request / Validation
@@ -51,7 +52,8 @@ func HandleError(w http.ResponseWriter, err error) {
 		errors.Is(err, domain.ErrNoAvailableSlots),
 		errors.Is(err, domain.ErrInsufficientBalance),
 		errors.Is(err, domain.ErrInvalidAmount),
-		errors.Is(err, domain.ErrSessionNotStarted):
+		errors.Is(err, domain.ErrSessionNotStarted),
+		errors.Is(err, domain.ErrUserIsNotTrainer):
 		status = http.StatusBadRequest
 
 	// Forbidden

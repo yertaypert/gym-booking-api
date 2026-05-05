@@ -34,6 +34,7 @@ type GymRepository interface {
 	CreateSession(gymID int, session domain.Session) (*domain.Session, error)
 	ListGymsByOwnerID(ownerID int) ([]domain.Gym, error)
 	AssignTrainer(gymID int, trainerID int) error
+	IsTrainerInGym(gymID, trainerID int) (bool, error)
 }
 
 type BookingRepository interface {
