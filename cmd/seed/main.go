@@ -32,6 +32,8 @@ func main() {
 		if err := seedDemoData(db, adminID); err != nil {
 			log.Fatal(err)
 		}
+	} else {
+		log.Println("Skipping demo data seeding (SEED_DEMO_DATA is false)")
 	}
 }
 
@@ -67,6 +69,7 @@ func seedAdmin(db *sql.DB) (int, error) {
 }
 
 func seedDemoData(db *sql.DB, ownerID int) error {
+	log.Println("Seeding demo data...")
 	gyms := []struct {
 		name    string
 		address string
@@ -120,7 +123,7 @@ func seedDemoData(db *sql.DB, ownerID int) error {
 		}
 	}
 
-	log.Println("Seeded multiple gyms, classes, and sessions data")
+	log.Println("Successfully seeded gyms, classes, and sessions data")
 	return nil
 }
 
@@ -209,9 +212,10 @@ func getOrCreateSession(db *sql.DB, classID int, startTime, endTime time.Time, a
 }
 
 func shouldSeedDemoData() bool {
-	value := strings.ToLower(strings.TrimSpace(getEnv("SEED_DEMO_DATA", "false")))
+	value := strings.ToLower(strings.TrimSpace(getEnv("SEED_DEMO_DATA", "true")))
 	return value == "1" || value == "true" || value == "yes"
 }
+
 
 func getRequiredEnv(key string) string {
 	value := strings.TrimSpace(os.Getenv(key))
