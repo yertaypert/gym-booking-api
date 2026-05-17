@@ -90,9 +90,27 @@ SEED_DEMO_DATA=true
 
 ## Running Locally
 
-1. Start PostgreSQL.
-2. Create a `.env` file in the project root.
-3. Run the API:
+### 1. Start PostgreSQL.
+### 2. Clone the repository:
+
+```bash
+git clone https://github.com/yertaypert/gym-booking-api.git # or SSH
+cd gym-booking-api
+```
+
+### 3. Create database:
+
+```bash
+psql -U postgres -c "CREATE DATABASE gym_booking;" # replace postgres with your superuser
+```
+
+### 4. Configure environment variables, copy example env:
+
+```bash
+cp .env.example .env
+```
+
+### 5. Run the API:
 
 ```bash
 go run ./cmd/api
