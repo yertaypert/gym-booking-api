@@ -50,7 +50,7 @@ func NewBookingUsecase(
 // the transaction — all inside a single DB transaction.
 
 func (u *BookingUsecase) ListGymBookings(ctx context.Context, userID int, userRole domain.UserRole, gymID int) ([]domain.Booking, error) {
-	gym, err := u.gymRepo.GetGymByID(gymID)
+	gym, err := u.gymRepo.GetGymByID(ctx, gymID)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func (u *BookingUsecase) ListGymBookings(ctx context.Context, userID int, userRo
 }
 
 func (u *BookingUsecase) CreateBooking(ctx context.Context, userID, sessionID int) (int, error) {
-	user, err := u.userRepo.GetByID(userID)
+	user, err := u.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return 0, err
 	}
@@ -104,12 +104,12 @@ func (u *BookingUsecase) CreateBooking(ctx context.Context, userID, sessionID in
 	}
 	defer tx.Rollback()
 
-	bookingID, err := u.bookingRepo.Create(tx, userID, sessionID)
+	bookingID, err := u.bookingRepo.Create(ctx, tx, userID, sessionID)
 	if err != nil {
 		return 0, err
 	}
 
-	if err = u.walletRepo.UpdateBalance(tx, userID, -session.Price); err != nil {
+	if err = u.walletRepo.UpdateBalance(ctx, tx, userID, -session.Price); err != nil {
 		return 0, err
 	}
 
@@ -121,7 +121,7 @@ func (u *BookingUsecase) CreateBooking(ctx context.Context, userID, sessionID in
 		return 0, err
 	}
 
-	if err = u.walletRepo.CreateTransaction(tx, userID, &bookingID, -session.Price, string(domain.TransactionTypePayment)); err != nil {
+	if err = u.walletRepo.CreateTransaction(ctx, tx, userID, &bookingID, -session.Price, string(domain.TransactionTypePayment)); err != nil {
 		return 0, err
 	}
 
@@ -166,11 +166,11 @@ func (u *BookingUsecase) CancelBooking(ctx context.Context, requesterID, booking
 		return err
 	}
 
-	if err = u.walletRepo.UpdateBalance(tx, booking.UserID, session.Price); err != nil {
+	if err = u.walletRepo.UpdateBalance(ctx, tx, booking.UserID, session.Price); err != nil {
 		return err
 	}
 
-	if err = u.walletRepo.CreateTransaction(tx, booking.UserID, &bookingID, session.Price, string(domain.TransactionTypeRefund)); err != nil {
+	if err = u.walletRepo.CreateTransaction(ctx, tx, booking.UserID, &bookingID, session.Price, string(domain.TransactionTypeRefund)); err != nil {
 		return err
 	}
 

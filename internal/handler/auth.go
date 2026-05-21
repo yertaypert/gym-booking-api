@@ -42,7 +42,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.usecase.Register(req.Email, req.Password, req.FullName)
+	err = h.usecase.Register(r.Context(), req.Email, req.Password, req.FullName)
 	if err != nil {
 		if errors.Is(err, usecase.ErrInvalidEmail) || errors.Is(err, usecase.ErrInvalidFullName) || errors.Is(err, usecase.ErrWeakPassword) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -76,7 +76,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := h.usecase.Login(req.Email, req.Password)
+	token, err := h.usecase.Login(r.Context(), req.Email, req.Password)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -98,7 +98,7 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.usecase.Me(userID)
+	user, err := h.usecase.Me(r.Context(), userID)
 	if err != nil {
 		http.Error(w, "user not found", http.StatusNotFound)
 		return

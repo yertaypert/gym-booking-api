@@ -15,9 +15,9 @@ type mockUserRepo struct {
 	err  error
 }
 
-func (m *mockUserRepo) GetByID(id int) (*domain.User, error)          { return m.user, m.err }
-func (m *mockUserRepo) Create(user domain.User) (int, error)          { return 1, nil }
-func (m *mockUserRepo) GetByEmail(email string) (*domain.User, error) { return m.user, m.err }
+func (m *mockUserRepo) GetByID(ctx context.Context, id int) (*domain.User, error)          { return m.user, m.err }
+func (m *mockUserRepo) Create(ctx context.Context, user domain.User) (int, error)          { return 1, nil }
+func (m *mockUserRepo) GetByEmail(ctx context.Context, email string) (*domain.User, error) { return m.user, m.err }
 
 type mockSessionRepo struct {
 	session        *domain.Session
@@ -48,11 +48,10 @@ type mockBookingRepo struct {
 }
 
 func (m *mockBookingRepo) ListByGymID(ctx context.Context, gymID int) ([]domain.Booking, error) {
-	//TODO implement me
-	panic("implement me")
+	return []domain.Booking{}, nil
 }
 
-func (m *mockBookingRepo) Create(tx *sql.Tx, userID, sessionID int) (int, error) {
+func (m *mockBookingRepo) Create(ctx context.Context, tx *sql.Tx, userID, sessionID int) (int, error) {
 	return 1, m.createErr
 }
 func (m *mockBookingRepo) UpdateStatus(ctx context.Context, tx *sql.Tx, bookingID int, status string) error {
@@ -83,11 +82,11 @@ type mockWalletRepo struct {
 	lastAmount float64
 }
 
-func (m *mockWalletRepo) UpdateBalance(tx *sql.Tx, userID int, amount float64) error {
+func (m *mockWalletRepo) UpdateBalance(ctx context.Context, tx *sql.Tx, userID int, amount float64) error {
 	m.lastAmount = amount
 	return nil
 }
-func (m *mockWalletRepo) CreateTransaction(tx *sql.Tx, userID int, bookingID *int, amount float64, txType string) error {
+func (m *mockWalletRepo) CreateTransaction(ctx context.Context, tx *sql.Tx, userID int, bookingID *int, amount float64, txType string) error {
 	return nil
 }
 

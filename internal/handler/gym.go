@@ -39,7 +39,7 @@ func NewGymHandler(u *usecase.GymUsecase) *GymHandler {
 }
 
 func (h *GymHandler) ListGyms(w http.ResponseWriter, r *http.Request) {
-	gyms, err := h.usecase.ListGyms()
+	gyms, err := h.usecase.ListGyms(r.Context())
 	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
@@ -55,7 +55,7 @@ func (h *GymHandler) ListMyGyms(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	gyms, err := h.usecase.ListGymsByOwner(userID)
+	gyms, err := h.usecase.ListGymsByOwner(r.Context(), userID)
 	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
@@ -71,7 +71,7 @@ func (h *GymHandler) GetGym(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	gym, err := h.usecase.GetGym(gymID)
+	gym, err := h.usecase.GetGym(r.Context(), gymID)
 	if err != nil {
 		if errors.Is(err, usecase.ErrGymNotFound) {
 			http.Error(w, err.Error(), http.StatusNotFound)
@@ -92,7 +92,7 @@ func (h *GymHandler) ListGymClasses(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	classes, err := h.usecase.ListGymClasses(gymID)
+	classes, err := h.usecase.ListGymClasses(r.Context(), gymID)
 	if err != nil {
 		if errors.Is(err, usecase.ErrGymNotFound) {
 			http.Error(w, err.Error(), http.StatusNotFound)
@@ -119,7 +119,7 @@ func (h *GymHandler) ListClassSessions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessions, err := h.usecase.ListClassSessions(gymID, classID)
+	sessions, err := h.usecase.ListClassSessions(r.Context(), gymID, classID)
 	if err != nil {
 		switch {
 		case errors.Is(err, usecase.ErrGymNotFound), errors.Is(err, usecase.ErrClassNotFound), errors.Is(err, usecase.ErrClassDoesNotBelongToGym):
@@ -140,7 +140,7 @@ func (h *GymHandler) CreateGym(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	gym, err := h.usecase.CreateGym(req.OwnerID, req.Name, req.Address, req.Description)
+	gym, err := h.usecase.CreateGym(r.Context(), req.OwnerID, req.Name, req.Address, req.Description)
 	if err != nil {
 		switch {
 		case errors.Is(err, usecase.ErrInvalidGymName), errors.Is(err, usecase.ErrInvalidOwnerID):
@@ -172,7 +172,7 @@ func (h *GymHandler) CreateClass(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	class, err := h.usecase.CreateClass(userID, userRole, gymID, req.Name, req.MaxCapacity)
+	class, err := h.usecase.CreateClass(r.Context(), userID, userRole, gymID, req.Name, req.MaxCapacity)
 	if err != nil {
 		switch {
 		case errors.Is(err, usecase.ErrGymNotFound):
@@ -224,7 +224,7 @@ func (h *GymHandler) CreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session, err := h.usecase.CreateSession(userID, userRole, gymID, classID, startTime, endTime, req.Price)
+	session, err := h.usecase.CreateSession(r.Context(), userID, userRole, gymID, classID, startTime, endTime, req.Price)
 	if err != nil {
 		switch {
 		case errors.Is(err, usecase.ErrGymNotFound), errors.Is(err, usecase.ErrClassNotFound), errors.Is(err, usecase.ErrClassDoesNotBelongToGym):
@@ -267,7 +267,7 @@ func (h *GymHandler) AssignTrainer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.usecase.AssignTrainer(gymID, req.TrainerID)
+	err = h.usecase.AssignTrainer(r.Context(), gymID, req.TrainerID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

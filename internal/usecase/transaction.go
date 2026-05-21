@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -15,7 +16,7 @@ func NewTransactionUsecase(repo TransactionRepository) *TransactionUsecase {
 	return &TransactionUsecase{repo: repo}
 }
 
-func (u *TransactionUsecase) CreateTransaction(userID int, amount float64, txType string) (*domain.Transaction, error) {
+func (u *TransactionUsecase) CreateTransaction(ctx context.Context, userID int, amount float64, txType string) (*domain.Transaction, error) {
 	if amount <= 0 {
 		return nil, errors.New("amount must be greater than zero")
 	}
@@ -27,7 +28,7 @@ func (u *TransactionUsecase) CreateTransaction(userID int, amount float64, txTyp
 		CreatedAt: time.Now(),
 	}
 
-	err := u.repo.Create(tx)
+	err := u.repo.Create(ctx, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -35,6 +36,6 @@ func (u *TransactionUsecase) CreateTransaction(userID int, amount float64, txTyp
 	return tx, nil
 }
 
-func (u *TransactionUsecase) GetUserTransactions(userID int) ([]domain.Transaction, error) {
-	return u.repo.GetByUserID(userID)
+func (u *TransactionUsecase) GetUserTransactions(ctx context.Context, userID int) ([]domain.Transaction, error) {
+	return u.repo.GetByUserID(ctx, userID)
 }

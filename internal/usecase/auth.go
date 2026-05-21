@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"context"
 	"errors"
 	"net/mail"
 	"strings"
@@ -25,7 +26,7 @@ func NewAuthUsecase(repo UserRepository) *AuthUsecase {
 	return &AuthUsecase{userRepo: repo}
 }
 
-func (u *AuthUsecase) Register(email, password, fullName string) error {
+func (u *AuthUsecase) Register(ctx context.Context, email, password, fullName string) error {
 	email = normalizeEmail(email)
 	fullName = strings.TrimSpace(fullName)
 
@@ -46,7 +47,7 @@ func (u *AuthUsecase) Register(email, password, fullName string) error {
 		Balance:      0,
 	}
 
-	_, err = u.userRepo.Create(newUser)
+	_, err = u.userRepo.Create(ctx, newUser)
 	if err != nil {
 		var pqErr *pq.Error
 		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
@@ -57,10 +58,10 @@ func (u *AuthUsecase) Register(email, password, fullName string) error {
 	return err
 }
 
-func (u *AuthUsecase) Login(email, password string) (string, error) {
+func (u *AuthUsecase) Login(ctx context.Context, email, password string) (string, error) {
 	email = normalizeEmail(email)
 
-	user, err := u.userRepo.GetByEmail(email)
+	user, err := u.userRepo.GetByEmail(ctx, email)
 	if err != nil {
 		return "", errors.New("user not found")
 	}
@@ -81,8 +82,8 @@ func (u *AuthUsecase) Login(email, password string) (string, error) {
 	return token, nil
 }
 
-func (u *AuthUsecase) Me(userID int) (*domain.User, error) {
-	user, err := u.userRepo.GetByID(userID)
+func (u *AuthUsecase) Me(ctx context.Context, userID int) (*domain.User, error) {
+	user, err := u.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}

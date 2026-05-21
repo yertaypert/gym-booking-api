@@ -10,27 +10,27 @@ import (
 )
 
 type UserRepository interface {
-	Create(user domain.User) (int, error)
-	GetByEmail(email string) (*domain.User, error)
-	GetByID(id int) (*domain.User, error)
+	Create(ctx context.Context, user domain.User) (int, error)
+	GetByEmail(ctx context.Context, email string) (*domain.User, error)
+	GetByID(ctx context.Context, id int) (*domain.User, error)
 }
 
 type GymRepository interface {
-	ListGyms() ([]domain.Gym, error)
-	GetGymByID(id int) (*domain.Gym, error)
-	ListClassesByGymID(gymID int) ([]domain.Class, error)
-	CreateGym(gym domain.Gym) (*domain.Gym, error)
-	CreateClass(class domain.Class) (*domain.Class, error)
-	ListSessionsByGymAndClassID(gymID, classID int) ([]domain.Session, error)
-	GetClassByID(classID int) (*domain.Class, error)
-	CreateSession(gymID int, session domain.Session) (*domain.Session, error)
-	ListGymsByOwnerID(ownerID int) ([]domain.Gym, error)
-	AssignTrainer(gymID int, trainerID int) error
+	ListGyms(ctx context.Context) ([]domain.Gym, error)
+	GetGymByID(ctx context.Context, id int) (*domain.Gym, error)
+	ListClassesByGymID(ctx context.Context, gymID int) ([]domain.Class, error)
+	CreateGym(ctx context.Context, gym domain.Gym) (*domain.Gym, error)
+	CreateClass(ctx context.Context, class domain.Class) (*domain.Class, error)
+	ListSessionsByGymAndClassID(ctx context.Context, gymID, classID int) ([]domain.Session, error)
+	GetClassByID(ctx context.Context, classID int) (*domain.Class, error)
+	CreateSession(ctx context.Context, gymID int, session domain.Session) (*domain.Session, error)
+	ListGymsByOwnerID(ctx context.Context, ownerID int) ([]domain.Gym, error)
+	AssignTrainer(ctx context.Context, gymID int, trainerID int) error
 }
 
 type BookingRepository interface {
 	GetByID(ctx context.Context, bookingID int) (*domain.Booking, error)
-	Create(tx *sql.Tx, userID, sessionID int) (int, error)
+	Create(ctx context.Context, tx *sql.Tx, userID, sessionID int) (int, error)
 	UpdateStatus(ctx context.Context, tx *sql.Tx, bookingID int, status string) error
 	GetByUserID(ctx context.Context, userID int) ([]domain.Booking, error)
 	GetDetailsByUserID(ctx context.Context, userID int) ([]domain.BookingDetail, error)
@@ -41,8 +41,8 @@ type BookingRepository interface {
 }
 
 type WalletRepository interface {
-	UpdateBalance(tx *sql.Tx, userID int, amount float64) error
-	CreateTransaction(tx *sql.Tx, userID int, bookingID *int, amount float64, txType string) error
+	UpdateBalance(ctx context.Context, tx *sql.Tx, userID int, amount float64) error
+	CreateTransaction(ctx context.Context, tx *sql.Tx, userID int, bookingID *int, amount float64, txType string) error
 }
 
 type SessionRepository interface {
@@ -52,8 +52,8 @@ type SessionRepository interface {
 }
 
 type TransactionRepository interface {
-	Create(transaction *domain.Transaction) error
-	GetByUserID(userID int) ([]domain.Transaction, error)
+	Create(ctx context.Context, transaction *domain.Transaction) error
+	GetByUserID(ctx context.Context, userID int) ([]domain.Transaction, error)
 }
 
 type ClassRepository interface {

@@ -33,7 +33,7 @@ func (h *TransactionHandler) CreateTransaction(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	tx, err := h.usecase.CreateTransaction(req.UserID, req.Amount, req.Type)
+	tx, err := h.usecase.CreateTransaction(r.Context(), req.UserID, req.Amount, req.Type)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -58,7 +58,7 @@ func (h *TransactionHandler) GetMyTransactions(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	transactions, err := h.usecase.GetUserTransactions(userID)
+	transactions, err := h.usecase.GetUserTransactions(r.Context(), userID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(`{"error": "` + err.Error() + `"}`))

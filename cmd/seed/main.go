@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -23,13 +24,15 @@ func main() {
 	db := database.NewDB(cfg)
 	defer db.Close()
 
-	adminID, err := seedAdmin(db)
+	ctx := context.Background()
+
+	adminID, err := seedAdmin(ctx, db)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	if shouldSeedDemoData() {
-		if err := seedDemoData(db, adminID); err != nil {
+		if err := seedDemoData(ctx, db, adminID); err != nil {
 			log.Fatal(err)
 		}
 	} else {
@@ -37,7 +40,7 @@ func main() {
 	}
 }
 
-func seedAdmin(db *sql.DB) (int, error) {
+func seedAdmin(ctx context.Context, db *sql.DB) (int, error) {
 	email := strings.ToLower(strings.TrimSpace(getRequiredEnv("SEED_ADMIN_EMAIL")))
 	password := getRequiredEnv("SEED_ADMIN_PASSWORD")
 	fullName := strings.TrimSpace(getEnv("SEED_ADMIN_FULL_NAME", "Initial Admin"))
@@ -48,7 +51,8 @@ func seedAdmin(db *sql.DB) (int, error) {
 	}
 
 	var id int
-	err = db.QueryRow(
+	err = db.QueryRowContext(
+		ctx,
 		`INSERT INTO users (email, password_hash, full_name, role, balance)
 		VALUES ($1, $2, $3, 'admin', 0)
 		ON CONFLICT (email) DO UPDATE
@@ -68,7 +72,7 @@ func seedAdmin(db *sql.DB) (int, error) {
 	return id, nil
 }
 
-func seedDemoData(db *sql.DB, ownerID int) error {
+func seedDemoData(ctx context.Context, db *sql.DB, ownerID int) error {
 	log.Println("Seeding demo data...")
 	gyms := []struct {
 		name    string
@@ -90,13 +94,13 @@ func seedDemoData(db *sql.DB, ownerID int) error {
 	}
 
 	for _, g := range gyms {
-		gymID, err := getOrCreateGym(db, g.name, g.address, g.desc, ownerID)
+		gymID, err := getOrCreateGym(ctx, db, g.name, g.address, g.desc, ownerID)
 		if err != nil {
 			return err
 		}
 
 		for _, c := range classes {
-			classID, maxCapacity, err := getOrCreateClass(db, gymID, c.name, c.maxCapacity)
+			classID, maxCapacity, err := getOrCreateClass(ctx, db, gymID, c.name, c.maxCapacity)
 			if err != nil {
 				return err
 			}
@@ -116,7 +120,7 @@ func seedDemoData(db *sql.DB, ownerID int) error {
 				startTime := time.Now().UTC().Add(st.startOffset).Truncate(time.Hour)
 				endTime := startTime.Add(st.duration)
 
-				if err := getOrCreateSession(db, classID, startTime, endTime, maxCapacity, st.price); err != nil {
+				if err := getOrCreateSession(ctx, db, classID, startTime, endTime, maxCapacity, st.price); err != nil {
 					return err
 				}
 			}
@@ -127,9 +131,9 @@ func seedDemoData(db *sql.DB, ownerID int) error {
 	return nil
 }
 
-func getOrCreateGym(db *sql.DB, name, address, description string, ownerID int) (int, error) {
+func getOrCreateGym(ctx context.Context, db *sql.DB, name, address, description string, ownerID int) (int, error) {
 	var id int
-	err := db.QueryRow(`SELECT id FROM gyms WHERE name = $1`, name).Scan(&id)
+	err := db.QueryRowContext(ctx, `SELECT id FROM gyms WHERE name = $1`, name).Scan(&id)
 	if err == nil {
 		return id, nil
 	}
@@ -137,7 +141,8 @@ func getOrCreateGym(db *sql.DB, name, address, description string, ownerID int) 
 		return 0, fmt.Errorf("query gym: %w", err)
 	}
 
-	err = db.QueryRow(
+	err = db.QueryRowContext(
+		ctx,
 		`INSERT INTO gyms (name, address, description, owner_id) VALUES ($1, $2, $3, $4) RETURNING id`,
 		name,
 		address,
@@ -151,10 +156,11 @@ func getOrCreateGym(db *sql.DB, name, address, description string, ownerID int) 
 	return id, nil
 }
 
-func getOrCreateClass(db *sql.DB, gymID int, name string, maxCapacity int) (int, int, error) {
+func getOrCreateClass(ctx context.Context, db *sql.DB, gymID int, name string, maxCapacity int) (int, int, error) {
 	var id int
 	var existingCapacity int
-	err := db.QueryRow(
+	err := db.QueryRowContext(
+		ctx,
 		`SELECT id, max_capacity FROM classes WHERE gym_id = $1 AND name = $2`,
 		gymID,
 		name,
@@ -166,7 +172,8 @@ func getOrCreateClass(db *sql.DB, gymID int, name string, maxCapacity int) (int,
 		return 0, 0, fmt.Errorf("query class: %w", err)
 	}
 
-	err = db.QueryRow(
+	err = db.QueryRowContext(
+		ctx,
 		`INSERT INTO classes (gym_id, name, max_capacity) VALUES ($1, $2, $3) RETURNING id, max_capacity`,
 		gymID,
 		name,
@@ -179,9 +186,10 @@ func getOrCreateClass(db *sql.DB, gymID int, name string, maxCapacity int) (int,
 	return id, existingCapacity, nil
 }
 
-func getOrCreateSession(db *sql.DB, classID int, startTime, endTime time.Time, availableSlots int, price float64) error {
+func getOrCreateSession(ctx context.Context, db *sql.DB, classID int, startTime, endTime time.Time, availableSlots int, price float64) error {
 	var id int
-	err := db.QueryRow(
+	err := db.QueryRowContext(
+		ctx,
 		`SELECT id FROM class_sessions WHERE class_id = $1 AND start_time = $2 AND end_time = $3`,
 		classID,
 		startTime,
@@ -194,7 +202,8 @@ func getOrCreateSession(db *sql.DB, classID int, startTime, endTime time.Time, a
 		return fmt.Errorf("query session: %w", err)
 	}
 
-	err = db.QueryRow(
+	err = db.QueryRowContext(
+		ctx,
 		`INSERT INTO class_sessions (class_id, start_time, end_time, available_slots, price, status)
 		VALUES ($1, $2, $3, $4, $5, 'active')
 		RETURNING id`,
