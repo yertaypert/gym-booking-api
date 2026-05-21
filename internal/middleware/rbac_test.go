@@ -45,3 +45,54 @@ func TestRequireRolesRejectsNonMatchingRole(t *testing.T) {
 		t.Fatalf("expected status %d, got %d", http.StatusForbidden, rr.Code)
 	}
 }
+
+// TestRequireRoles_NoRoleInContext — нет ключа в контексте вообще
+func TestRequireRoles_NoRoleInContext(t *testing.T) {
+	handler := RequireRoles(domain.RoleAdmin)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	// контекст пустой — UserRoleKey не установлен
+	req := httptest.NewRequest(http.MethodGet, "/admin/me", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d", rr.Code)
+	}
+}
+
+// TestRequireRoles_MultipleRoles_FirstMatches — роль есть в списке (первая)
+func TestRequireRoles_MultipleRoles_FirstMatches(t *testing.T) {
+	handler := RequireRoles(domain.RoleAdmin, domain.RoleGymOwner)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req = req.WithContext(context.WithValue(req.Context(), UserRoleKey, domain.RoleAdmin))
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rr.Code)
+	}
+}
+
+// TestRequireRoles_MultipleRoles_SecondMatches — роль есть в списке (вторая)
+func TestRequireRoles_MultipleRoles_SecondMatches(t *testing.T) {
+	handler := RequireRoles(domain.RoleAdmin, domain.RoleGymOwner)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req = req.WithContext(context.WithValue(req.Context(), UserRoleKey, domain.RoleGymOwner))
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rr.Code)
+	}
+}
