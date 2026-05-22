@@ -40,48 +40,109 @@ func main() {
 	}
 }
 
-func seedAdmin(ctx context.Context, db *sql.DB) (int, error) {
-	email := strings.ToLower(strings.TrimSpace(getRequiredEnv("SEED_ADMIN_EMAIL")))
-	password := getRequiredEnv("SEED_ADMIN_PASSWORD")
-	fullName := strings.TrimSpace(getEnv("SEED_ADMIN_FULL_NAME", "Initial Admin"))
-
+func seedUser(ctx context.Context, db *sql.DB, email, password, fullName, role string, balance float64) (int, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return 0, fmt.Errorf("hash admin password: %w", err)
+		return 0, fmt.Errorf("hash password for %s: %w", email, err)
 	}
 
 	var id int
 	err = db.QueryRowContext(
 		ctx,
 		`INSERT INTO users (email, password_hash, full_name, role, balance)
-		VALUES ($1, $2, $3, 'admin', 0)
+		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (email) DO UPDATE
 		SET password_hash = EXCLUDED.password_hash,
 			full_name = EXCLUDED.full_name,
-			role = 'admin'
+			role = EXCLUDED.role
 		RETURNING id`,
 		email,
 		string(hashedPassword),
 		fullName,
+		role,
+		balance,
 	).Scan(&id)
 	if err != nil {
-		return 0, fmt.Errorf("seed admin user: %w", err)
+		return 0, fmt.Errorf("seed user %s: %w", email, err)
 	}
 
-	log.Printf("Seeded admin user %s with id %d", email, id)
+	log.Printf("Seeded %s user %s with id %d", role, email, id)
 	return id, nil
 }
 
-func seedDemoData(ctx context.Context, db *sql.DB, ownerID int) error {
+func seedAdmin(ctx context.Context, db *sql.DB) (int, error) {
+	email := strings.ToLower(strings.TrimSpace(getRequiredEnv("SEED_ADMIN_EMAIL")))
+	password := getRequiredEnv("SEED_ADMIN_PASSWORD")
+	fullName := strings.TrimSpace(getEnv("SEED_ADMIN_FULL_NAME", "Initial Admin"))
+
+	return seedUser(ctx, db, email, password, fullName, "admin", 0)
+}
+
+func seedDemoData(ctx context.Context, db *sql.DB, adminID int) error {
 	log.Println("Seeding demo data...")
+
+	// Seed some gym owners
+	owners := []struct {
+		email    string
+		fullName string
+	}{
+		{"owner1@example.com", "John Gym Owner"},
+		{"owner2@example.com", "Jane Gym Owner"},
+	}
+
+	ownerIDs := make([]int, 0)
+	for _, o := range owners {
+		id, err := seedUser(ctx, db, o.email, "Password123", o.fullName, "gym_owner", 0)
+		if err != nil {
+			return err
+		}
+		ownerIDs = append(ownerIDs, id)
+	}
+
+	// Seed some trainers
+	trainers := []struct {
+		email    string
+		fullName string
+	}{
+		{"trainer1@example.com", "Mike Trainer"},
+		{"trainer2@example.com", "Sarah Trainer"},
+	}
+
+	trainerIDs := make([]int, 0)
+	for _, t := range trainers {
+		id, err := seedUser(ctx, db, t.email, "Password123", t.fullName, "trainer", 0)
+		if err != nil {
+			return err
+		}
+		trainerIDs = append(trainerIDs, id)
+	}
+
+	// Seed some regular users
+	users := []struct {
+		email    string
+		fullName string
+		balance  float64
+	}{
+		{"user1@example.com", "Alice User", 100.0},
+		{"user2@example.com", "Bob User", 50.0},
+	}
+
+	for _, u := range users {
+		_, err := seedUser(ctx, db, u.email, "Password123", u.fullName, "user", u.balance)
+		if err != nil {
+			return err
+		}
+	}
+
 	gyms := []struct {
 		name    string
 		address string
 		desc    string
+		ownerIdx int
 	}{
-		{"Downtown Gym", "123 Main St", "Open 24/7 demo gym"},
-		{"Fitness First", "456 Oak Ave", "High-end fitness center"},
-		{"Iron Works", "789 Industrial Rd", "Old school bodybuilding gym"},
+		{"Downtown Gym", "123 Main St", "Open 24/7 demo gym", 0},
+		{"Fitness First", "456 Oak Ave", "High-end fitness center", 0},
+		{"Iron Works", "789 Industrial Rd", "Old school bodybuilding gym", 1},
 	}
 
 	classes := []struct {
@@ -94,8 +155,15 @@ func seedDemoData(ctx context.Context, db *sql.DB, ownerID int) error {
 	}
 
 	for _, g := range gyms {
+		ownerID := ownerIDs[g.ownerIdx]
 		gymID, err := getOrCreateGym(ctx, db, g.name, g.address, g.desc, ownerID)
 		if err != nil {
+			return err
+		}
+
+		// Assign a trainer to each gym
+		trainerID := trainerIDs[g.ownerIdx%len(trainerIDs)]
+		if err := assignTrainerToGym(ctx, db, gymID, trainerID); err != nil {
 			return err
 		}
 
@@ -105,19 +173,27 @@ func seedDemoData(ctx context.Context, db *sql.DB, ownerID int) error {
 				return err
 			}
 
-			// Seed 3 sessions for each class at different times
+			// Seed 4 sessions for each class
 			sessionTimes := []struct {
 				startOffset time.Duration
 				duration    time.Duration
 				price       float64
 			}{
+				{-time.Hour, 2 * time.Hour, 10.0}, // Session starting 1 hour ago (for immediate testing)
 				{24 * time.Hour, time.Hour, 15.0},
 				{48 * time.Hour, 90 * time.Minute, 20.0},
 				{72 * time.Hour, time.Hour, 18.0},
 			}
 
 			for _, st := range sessionTimes {
-				startTime := time.Now().UTC().Add(st.startOffset).Truncate(time.Hour)
+				// Ensure sessions start after May 23, 2026 (except the first one which is for today)
+				var seedStartTime time.Time
+				if st.startOffset < 0 {
+					seedStartTime = time.Now().UTC()
+				} else {
+					seedStartTime = time.Date(2026, time.May, 23, 0, 0, 0, 0, time.UTC)
+				}
+				startTime := seedStartTime.Add(st.startOffset).Truncate(time.Hour)
 				endTime := startTime.Add(st.duration)
 
 				if err := getOrCreateSession(ctx, db, classID, startTime, endTime, maxCapacity, st.price); err != nil {
@@ -128,6 +204,14 @@ func seedDemoData(ctx context.Context, db *sql.DB, ownerID int) error {
 	}
 
 	log.Println("Successfully seeded gyms, classes, and sessions data")
+	return nil
+}
+
+func assignTrainerToGym(ctx context.Context, db *sql.DB, gymID, trainerID int) error {
+	_, err := db.ExecContext(ctx, `INSERT INTO gym_trainers (gym_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, gymID, trainerID)
+	if err != nil {
+		return fmt.Errorf("assign trainer to gym: %w", err)
+	}
 	return nil
 }
 

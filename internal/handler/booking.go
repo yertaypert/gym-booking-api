@@ -162,7 +162,8 @@ func (h *BookingHandler) GenerateAttendanceQR(w http.ResponseWriter, r *http.Req
 }
 
 type ScanAttendanceQRRequest struct {
-	Token string `json:"token"`
+	Token  string `json:"token"`
+	QRCode string `json:"qr_code"`
 }
 
 type ScanAttendanceQRResponse struct {
@@ -186,12 +187,18 @@ func (h *BookingHandler) ScanAttendanceQR(w http.ResponseWriter, r *http.Request
 		writeError(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
-	if req.Token == "" {
-		writeError(w, "token is required", http.StatusBadRequest)
+
+	token := req.Token
+	if token == "" {
+		token = req.QRCode
+	}
+
+	if token == "" {
+		writeError(w, "token or qr_code is required", http.StatusBadRequest)
 		return
 	}
 
-	result, err := h.bookingUsecase.ScanAttendanceQR(r.Context(), userID, req.Token)
+	result, err := h.bookingUsecase.ScanAttendanceQR(r.Context(), userID, token)
 	if err != nil {
 		switch {
 		case errors.Is(err, usecase.ErrInvalidAttendanceQR):

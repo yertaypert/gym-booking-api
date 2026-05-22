@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"os"
 	"time"
 
 	"github.com/yertaypert/gym-booking-api/internal/auth"
@@ -311,7 +312,9 @@ func (u *BookingUsecase) markBookingAttended(ctx context.Context, booking *domai
 	if err != nil {
 		return err
 	}
-	if time.Now().Before(session.StartTime) {
+
+	bypassCheck := os.Getenv("BYPASS_ATTENDANCE_TIME_CHECK") == "true"
+	if !bypassCheck && time.Now().Before(session.StartTime) {
 		return ErrSessionNotStartedYet
 	}
 
