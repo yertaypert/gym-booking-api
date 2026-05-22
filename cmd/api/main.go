@@ -54,6 +54,7 @@ func main() {
 	transactionHandler := handler.NewTransactionHandler(transactionUsecase)
 	walletHandler := handler.NewWalletHandler(walletUsecase)
 	trainerBookingHandler := handler.NewTrainerBookingHandler(trainerBookingUsecase)
+
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/register", authHandler.Register)
