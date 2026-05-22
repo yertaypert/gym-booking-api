@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// CreateBooking нет UserID в контексте - 401
+// CreateBooking no UserID - 401
 func TestCreateBooking_NoUserContext(t *testing.T) {
 	h := &BookingHandler{bookingUsecase: nil}
 
@@ -20,7 +20,7 @@ func TestCreateBooking_NoUserContext(t *testing.T) {
 	}
 }
 
-// CancelBooking невалидный bookingId - 400
+// CancelBooking invalid bookingId - 400
 func TestCancelBooking_InvalidID(t *testing.T) {
 	h := &BookingHandler{bookingUsecase: nil}
 
@@ -37,7 +37,7 @@ func TestCancelBooking_InvalidID(t *testing.T) {
 	}
 }
 
-// MarkAttended невалидный bookingId - 400
+// MarkAttended invalid bookingId - 400
 func TestMarkAttended_InvalidID(t *testing.T) {
 	h := &BookingHandler{bookingUsecase: nil}
 
