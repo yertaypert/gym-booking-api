@@ -5,13 +5,14 @@ import (
 	"time"
 
 	"github.com/yertaypert/gym-booking-api/internal/domain"
+	"github.com/yertaypert/gym-booking-api/internal/repository"
 )
 
 type ClassUsecase struct {
 	classRepo ClassRepository
 }
 
-func NewClassUsecase(classRepo ClassRepository) *ClassUsecase {
+func NewClassUsecase(classRepo *repository.ClassRepository) *ClassUsecase {
 	return &ClassUsecase{classRepo: classRepo}
 }
 

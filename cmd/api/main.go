@@ -35,6 +35,8 @@ func main() {
 	classRepo := repository.NewClassRepository(db)
 	transactionRepo := repository.NewTransactionRepository(db)
 	trainerRepo := repository.NewTrainerRepository(db)
+	trainerSlotRepo := repository.NewTrainerSlotRepository(db)
+	trainerBookingRepo := repository.NewTrainerBookingRepository(db)
 
 	// Usecases
 	authUsecase := usecase.NewAuthUsecase(userRepo)
@@ -43,6 +45,8 @@ func main() {
 	classUsecase := usecase.NewClassUsecase(classRepo)
 	transactionUsecase := usecase.NewTransactionUsecase(transactionRepo)
 	walletUsecase := usecase.NewWalletUsecase(db, walletRepo)
+	trainerBookingUsecase := usecase.NewTrainerBookingUsecase(trainerSlotRepo, trainerBookingRepo)
+	trainerSlotUsecase := usecase.NewTrainerSlotUsecase(trainerSlotRepo)
 	trainerUsecase := usecase.NewTrainerUsecase(db, userRepo, trainerRepo)
 	userUsecase := usecase.NewUserUsecase(userRepo)
 
@@ -53,6 +57,8 @@ func main() {
 	classHandler := handler.NewClassHandler(classUsecase)
 	transactionHandler := handler.NewTransactionHandler(transactionUsecase)
 	walletHandler := handler.NewWalletHandler(walletUsecase)
+	trainerBookingHandler := handler.NewTrainerBookingHandler(trainerBookingUsecase)
+	trainerSlotHandler := handler.NewTrainerSlotHandler(trainerSlotUsecase)
 	trainerHandler := handler.NewTrainerHandler(trainerUsecase)
 	userHandler := handler.NewUserHandler(userUsecase)
 	mux := http.NewServeMux()
@@ -69,6 +75,8 @@ func main() {
 	mux.HandleFunc("GET /classes/{name}", classHandler.ListGymsByClass)
 	mux.HandleFunc("GET /classes/{name}/sessions", classHandler.SearchSessions)
 	mux.HandleFunc("GET /sessions/{id}", classHandler.GetSession)
+
+	mux.HandleFunc("GET /available-slots", trainerSlotHandler.ListAvailableSlots)
 
 	// Admin user management
 	mux.Handle(
@@ -101,6 +109,19 @@ func main() {
 		"GET /me/bookings",
 		middleware.AuthMiddleware(http.HandlerFunc(bookingHandler.GetMyBookings)),
 	)
+	// for booking trainer slots
+	mux.Handle(
+		"POST /trainer-slots/{id}/book",
+		middleware.AuthMiddleware(http.HandlerFunc(trainerBookingHandler.BookTrainerSlot)),
+	)
+	// эндпойнт для того, чтобы видеть свои букингсы
+	mux.Handle(
+		"GET /me/trainer-bookings",
+		middleware.AuthMiddleware(http.HandlerFunc(trainerBookingHandler.GetMyTrainerBookings)))
+	// а это для того, чтобы отменять букинг
+	mux.Handle(
+		"POST /trainer-bookings/{id}/cancel",
+		middleware.AuthMiddleware(http.HandlerFunc(trainerBookingHandler.CancelTrainerBooking)))
 	// Admin creates gym
 	mux.Handle(
 		"POST /gyms",
@@ -179,6 +200,14 @@ func main() {
 		"POST /gyms/{id}/trainers",
 		middleware.AuthMiddleware(
 			middleware.RequireRoles(domain.RoleAdmin, domain.RoleGymOwner)(http.HandlerFunc(gymHandler.AssignTrainer)),
+		),
+	)
+	mux.Handle(
+		"POST/trainer-slots",
+		middleware.AuthMiddleware(middleware.RequireRoles(
+			domain.RoleAdmin,
+			domain.RoleGymOwner,
+			domain.RoleTrainer)(http.HandlerFunc(trainerSlotHandler.CreateTrainerSlot)),
 		),
 	)
 	// Mark a booking as attended — admin only

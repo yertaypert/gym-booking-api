@@ -73,3 +73,15 @@ type ClassRepository interface {
 	SearchSessionsByClassName(ctx context.Context, name string, startTime, endTime *time.Time, trainerOnly bool) ([]domain.SessionWithGym, error)
 	GetSessionWithDetails(ctx context.Context, sessionID int) (*domain.SessionWithGym, error)
 }
+type TrainerSlotRepository interface {
+	GetByID(ctx context.Context, slotID int) (*domain.TrainerSlot, error)
+	UpdateStatus(ctx context.Context, slotID int, status string) error
+	ListAvailableSlots(ctx context.Context) ([]domain.TrainerSlot, error)
+	Create(ctx context.Context, slot *domain.TrainerSlot) error
+}
+type TrainerBookingRepository interface {
+	Create(ctx context.Context, booking *domain.TrainerBooking) error
+	GetByUserID(ctx context.Context, userID int) ([]domain.TrainerBooking, error)
+	GetByID(ctx context.Context, userID int) (*domain.TrainerBooking, error)
+	UpdateStatus(ctx context.Context, bookingID int, status string) error
+}
