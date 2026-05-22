@@ -1,8 +1,12 @@
 package main
 
 import (
-	"log"
+	"context"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/yertaypert/gym-booking-api/internal/config"
@@ -20,7 +24,7 @@ func main() {
 
 	err := godotenv.Load()
 	if err != nil {
-		log.Println("No .env file found")
+		globalLogger.Warn("No .env file found")
 	}
 
 	cfg := config.Load()
@@ -53,8 +57,8 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/register", authHandler.Register)
-	mux.HandleFunc("/login", authHandler.Login)
+	mux.HandleFunc("POST /register", authHandler.Register)
+	mux.HandleFunc("POST /login", authHandler.Login)
 
 	mux.HandleFunc("GET /gyms", gymHandler.ListGyms)
 	mux.HandleFunc("GET /gyms/{id}", gymHandler.GetGym)
@@ -137,9 +141,9 @@ func main() {
 		middleware.AuthMiddleware(http.HandlerFunc(walletHandler.TopUp)),
 	)
 
-	mux.Handle("/me", middleware.AuthMiddleware(http.HandlerFunc(authHandler.Me)))
+	mux.Handle("GET /me", middleware.AuthMiddleware(http.HandlerFunc(authHandler.Me)))
 	mux.Handle(
-		"/admin/me",
+		"GET /admin/me",
 		middleware.AuthMiddleware(
 			middleware.RequireRoles(domain.RoleAdmin)(http.HandlerFunc(authHandler.Me)),
 		),
@@ -147,10 +151,37 @@ func main() {
 
 	loggedMux := middleware.RequestLogger(mux.ServeHTTP)
 
-	globalLogger.Info("Server is starting", "port", cfg.ServerPort)
-
-	err = http.ListenAndServe(cfg.ServerPort, loggedMux)
-	if err != nil {
-		globalLogger.Error("Server crashed", "error", err.Error())
+	srv := &http.Server{
+		Addr:         cfg.ServerPort,
+		Handler:      loggedMux,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  120 * time.Second,
 	}
+
+	go func() {
+		globalLogger.Info("Server is starting", "port", cfg.ServerPort)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			globalLogger.Error("Server crashed", "error", err.Error())
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	globalLogger.Info("Server is shutting down...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		globalLogger.Error("Server forced to shutdown", "error", err)
+	}
+
+	if err := db.Close(); err != nil {
+		globalLogger.Error("Database connection close error", "error", err)
+	}
+
+	globalLogger.Info("Server exiting")
 }
