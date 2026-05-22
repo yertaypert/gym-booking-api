@@ -27,7 +27,7 @@ func TestCreateGymValidation(t *testing.T) {
 	})
 }
 
-// ─── CreateClass ─────────────────────────────────────────────────────────────
+// CreateClass 
 
 func TestCreateClassValidation(t *testing.T) {
 	gym := &domain.Gym{ID: 1, OwnerID: 10}
@@ -66,7 +66,7 @@ func TestCreateClassValidation(t *testing.T) {
 		},
 		{
 			name:        "not owner",
-			userID:      1, // gym принадлежит ownerID=10
+			userID:      1,
 			role:        domain.RoleGymOwner,
 			className:   "Yoga",
 			maxCapacity: 20,
@@ -107,7 +107,7 @@ func TestCreateClass_AdminCanCreateForAnyGym(t *testing.T) {
 	}
 }
 
-// ─── CreateSession ────────────────────────────────────────────────────────────
+// CreateSession
 
 func TestCreateSessionValidation(t *testing.T) {
 	gym := &domain.Gym{ID: 1, OwnerID: 10}
@@ -161,7 +161,7 @@ func TestCreateSessionValidation(t *testing.T) {
 		},
 		{
 			name:      "not owner",
-			userID:    1, // gym принадлежит ownerID=10
+			userID:    1,
 			role:      domain.RoleGymOwner,
 			startTime: now,
 			endTime:   now.Add(time.Hour),
@@ -192,7 +192,7 @@ func TestCreateSession_GymNotFound(t *testing.T) {
 
 func TestCreateSession_ClassNotFound(t *testing.T) {
 	gym := &domain.Gym{ID: 1, OwnerID: 10}
-	// gymErr=nil (gym найден), classErr=ErrClassNotFound
+	// gymErr=nil, classErr=ErrClassNotFound
 	uc := newGymUsecase(gym, nil, nil, repository.ErrClassNotFound)
 	now := time.Now()
 	_, err := uc.CreateSession(10, domain.RoleGymOwner, 1, 5, now, now.Add(time.Hour), 500)
@@ -203,7 +203,7 @@ func TestCreateSession_ClassNotFound(t *testing.T) {
 
 func TestCreateSession_ClassDoesNotBelongToGym(t *testing.T) {
 	gym := &domain.Gym{ID: 1, OwnerID: 10}
-	class := &domain.Class{ID: 5, GymID: 999, MaxCapacity: 20} // принадлежит другому gym
+	class := &domain.Class{ID: 5, GymID: 999, MaxCapacity: 20}
 	uc := newGymUsecase(gym, nil, class, nil)
 	now := time.Now()
 	_, err := uc.CreateSession(10, domain.RoleGymOwner, 1, 5, now, now.Add(time.Hour), 500)
