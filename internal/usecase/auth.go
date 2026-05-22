@@ -89,6 +89,19 @@ func (u *AuthUsecase) Me(ctx context.Context, userID int) (*domain.User, error) 
 	return user, nil
 }
 
+func (u *AuthUsecase) UpdateUserRole(ctx context.Context, userID int, role string) error {
+	// Validate role
+	userRole := domain.UserRole(role)
+	switch userRole {
+	case domain.RoleAdmin, domain.RoleUser, domain.RoleGymOwner, domain.RoleTrainer:
+		// Valid
+	default:
+		return errors.New("invalid role")
+	}
+
+	return u.userRepo.UpdateRole(ctx, userID, userRole)
+}
+
 func normalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
 }

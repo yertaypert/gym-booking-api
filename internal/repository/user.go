@@ -60,3 +60,21 @@ func (r *UserRepository) GetByID(ctx context.Context, id int) (*domain.User, err
 	}
 	return u, nil
 }
+
+func (r *UserRepository) UpdateRole(ctx context.Context, userID int, role domain.UserRole) error {
+	query := `UPDATE users SET role = $1 WHERE id = $2`
+	result, err := r.db.ExecContext(ctx, query, role, userID)
+	if err != nil {
+		return err
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return ErrNotFound
+	}
+
+	return nil
+}

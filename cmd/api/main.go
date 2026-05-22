@@ -160,6 +160,12 @@ func main() {
 			middleware.RequireRoles(domain.RoleAdmin)(http.HandlerFunc(authHandler.Me)),
 		),
 	)
+	mux.Handle(
+		"PATCH /admin/users/{id}/role",
+		middleware.AuthMiddleware(
+			middleware.RequireRoles(domain.RoleAdmin)(http.HandlerFunc(authHandler.UpdateUserRole)),
+		),
+	)
 
 	loggedMux := middleware.RequestLogger(mux.ServeHTTP)
 

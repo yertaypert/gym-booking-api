@@ -13,6 +13,7 @@ type UserRepository interface {
 	Create(ctx context.Context, user domain.User) (int, error)
 	GetByEmail(ctx context.Context, email string) (*domain.User, error)
 	GetByID(ctx context.Context, id int) (*domain.User, error)
+	UpdateRole(ctx context.Context, userID int, role domain.UserRole) error
 }
 
 type GymRepository interface {

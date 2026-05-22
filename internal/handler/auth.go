@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/yertaypert/gym-booking-api/internal/middleware"
 	"github.com/yertaypert/gym-booking-api/internal/usecase"
@@ -26,6 +27,10 @@ type RegisterRequest struct {
 type LoginRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
+}
+
+type UpdateRoleRequest struct {
+	Role string `json:"role"`
 }
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
@@ -99,4 +104,38 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, user)
+}
+
+func (h *AuthHandler) UpdateUserRole(w http.ResponseWriter, r *http.Request) {
+	targetUserIDStr := r.PathValue("id")
+	if targetUserIDStr == "" {
+		writeError(w, "user id is required", http.StatusBadRequest)
+		return
+	}
+
+	targetUserID, err := strconv.Atoi(targetUserIDStr)
+	if err != nil {
+		writeError(w, "invalid user id", http.StatusBadRequest)
+		return
+	}
+
+	var req UpdateRoleRequest
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		writeError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	err = h.usecase.UpdateUserRole(r.Context(), targetUserID, req.Role)
+	if err != nil {
+		if err.Error() == "invalid role" {
+			writeError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		writeError(w, "failed to update role", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("role updated"))
 }
