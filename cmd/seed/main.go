@@ -180,6 +180,7 @@ func seedDemoData(ctx context.Context, db *sql.DB, adminID int) error {
 				price       float64
 			}{
 				{-time.Hour, 2 * time.Hour, 10.0}, // Session starting 1 hour ago (for immediate testing)
+				{time.Minute, time.Minute, 5.0},   // Session starting in 1 min and ending in 2 mins (for worker test)
 				{24 * time.Hour, time.Hour, 15.0},
 				{48 * time.Hour, 90 * time.Minute, 20.0},
 				{72 * time.Hour, time.Hour, 18.0},

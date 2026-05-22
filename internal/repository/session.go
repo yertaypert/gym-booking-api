@@ -83,3 +83,16 @@ func (r *sqlSessionRepository) IncreaseAvailableSlots(ctx context.Context, tx *s
 	_, err := tx.ExecContext(ctx, query, sessionID)
 	return err
 }
+
+func (r *sqlSessionRepository) UpdateExpiredSessions(ctx context.Context) (int64, error) {
+	query := `UPDATE class_sessions 
+              SET status = 'completed' 
+              WHERE status = 'active' AND end_time < NOW()`
+
+	result, err := r.db.ExecContext(ctx, query)
+	if err != nil {
+		return 0, err
+	}
+
+	return result.RowsAffected()
+}

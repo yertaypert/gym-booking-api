@@ -52,6 +52,7 @@ type SessionRepository interface {
 	GetGymOwnerIDBySessionID(ctx context.Context, sessionID int) (int, error)
 	DecreaseAvailableSlots(ctx context.Context, tx *sql.Tx, sessionID int) error
 	IncreaseAvailableSlots(ctx context.Context, tx *sql.Tx, sessionID int) error
+	UpdateExpiredSessions(ctx context.Context) (int64, error)
 }
 
 type TransactionRepository interface {

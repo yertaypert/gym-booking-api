@@ -17,6 +17,7 @@ import (
 	"github.com/yertaypert/gym-booking-api/internal/middleware"
 	"github.com/yertaypert/gym-booking-api/internal/repository"
 	"github.com/yertaypert/gym-booking-api/internal/usecase"
+	"github.com/yertaypert/gym-booking-api/internal/worker"
 	"github.com/yertaypert/gym-booking-api/pkg/logger"
 )
 
@@ -56,6 +57,10 @@ func main() {
 	classHandler := handler.NewClassHandler(classUsecase)
 	transactionHandler := handler.NewTransactionHandler(transactionUsecase)
 	walletHandler := handler.NewWalletHandler(walletUsecase)
+
+	// Worker Manager
+	workerManager := worker.NewManager(sessionRepo)
+	workerManager.Start(context.Background())
 
 	mux := http.NewServeMux()
 
@@ -189,6 +194,8 @@ func main() {
 	<-quit
 
 	globalLogger.Info("Server is shutting down...")
+
+	workerManager.Stop()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

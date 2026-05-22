@@ -5,7 +5,9 @@ import "time"
 type SessionStatus string
 
 const (
-	SessionStatusActive SessionStatus = "active"
+	SessionStatusActive    SessionStatus = "active"
+	SessionStatusCompleted SessionStatus = "completed"
+	SessionStatusCancelled SessionStatus = "cancelled"
 )
 
 type Session struct {
