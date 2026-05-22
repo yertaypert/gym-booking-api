@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
+	"github.com/yertaypert/gym-booking-api/internal/auth"
 	"github.com/yertaypert/gym-booking-api/internal/config"
 	"github.com/yertaypert/gym-booking-api/internal/domain"
 	"github.com/yertaypert/gym-booking-api/internal/handler"
@@ -28,6 +29,7 @@ func main() {
 	}
 
 	cfg := config.Load()
+	auth.SetJWTSecret(cfg.JWTSecret)
 	db := database.NewDB(cfg)
 
 	// Repositories
@@ -125,11 +127,21 @@ func main() {
 			middleware.RequireRoles(domain.RoleAdmin)(http.HandlerFunc(bookingHandler.MarkAttended)),
 		),
 	)
+	mux.Handle(
+		"POST /sessions/{sessionId}/attendance-qr",
+		middleware.AuthMiddleware(
+			middleware.RequireRoles(domain.RoleAdmin, domain.RoleGymOwner)(http.HandlerFunc(bookingHandler.GenerateAttendanceQR)),
+		),
+	)
+	mux.Handle(
+		"POST /attendance/scan",
+		middleware.AuthMiddleware(http.HandlerFunc(bookingHandler.ScanAttendanceQR)),
+	)
 	// Admin views all attendees for a session
 	mux.Handle(
 		"GET /sessions/{sessionId}/bookings",
 		middleware.AuthMiddleware(
-			middleware.RequireRoles(domain.RoleAdmin)(http.HandlerFunc(bookingHandler.GetSessionAttendees)),
+			middleware.RequireRoles(domain.RoleAdmin, domain.RoleGymOwner)(http.HandlerFunc(bookingHandler.GetSessionAttendees)),
 		),
 	)
 	mux.Handle(

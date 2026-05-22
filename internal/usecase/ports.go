@@ -30,6 +30,7 @@ type GymRepository interface {
 
 type BookingRepository interface {
 	GetByID(ctx context.Context, bookingID int) (*domain.Booking, error)
+	GetByUserAndSession(ctx context.Context, userID, sessionID int) (*domain.Booking, error)
 	Create(ctx context.Context, tx *sql.Tx, userID, sessionID int) (int, error)
 	UpdateStatus(ctx context.Context, tx *sql.Tx, bookingID int, status string) error
 	GetByUserID(ctx context.Context, userID int) ([]domain.Booking, error)
@@ -47,6 +48,7 @@ type WalletRepository interface {
 
 type SessionRepository interface {
 	GetByID(ctx context.Context, id int) (*domain.Session, error)
+	GetGymOwnerIDBySessionID(ctx context.Context, sessionID int) (int, error)
 	DecreaseAvailableSlots(ctx context.Context, tx *sql.Tx, sessionID int) error
 	IncreaseAvailableSlots(ctx context.Context, tx *sql.Tx, sessionID int) error
 }

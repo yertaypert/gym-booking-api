@@ -6,6 +6,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/yertaypert/gym-booking-api/internal/auth"
 	"github.com/yertaypert/gym-booking-api/internal/domain"
 	"github.com/yertaypert/gym-booking-api/internal/repository"
 )
@@ -18,7 +19,11 @@ var (
 	ErrAlreadyAttended      = errors.New("attendance already marked for this booking")
 	ErrSessionNotStartedYet = errors.New("session has not started yet — cannot mark attendance")
 	ErrBookingNotConfirmed  = errors.New("only confirmed bookings can be marked as attended")
+	ErrSessionForbidden     = errors.New("session does not belong to gym owner")
+	ErrInvalidAttendanceQR  = errors.New("invalid or expired attendance QR")
 )
+
+const attendanceQRTTL = 15 * time.Minute
 
 type BookingUsecase struct {
 	db          *sql.DB
@@ -205,6 +210,99 @@ func (u *BookingUsecase) MarkAttended(ctx context.Context, bookingID int) error 
 	if booking.Status == domain.BookingStatusAttended {
 		return ErrAlreadyAttended
 	}
+	return u.markBookingAttended(ctx, booking)
+}
+
+// GetMyBookings returns all bookings (with session detail) for the calling user.
+func (u *BookingUsecase) GetMyBookings(ctx context.Context, userID int) ([]domain.BookingDetail, error) {
+	return u.bookingRepo.GetDetailsByUserID(ctx, userID)
+}
+
+// GetSessionAttendees returns all bookings for a session.  Intended for admin/trainer use.
+func (u *BookingUsecase) GetSessionAttendees(ctx context.Context, requesterID int, role domain.UserRole, sessionID int) ([]domain.BookingDetail, error) {
+	if err := u.ensureSessionAttendanceAccess(ctx, requesterID, role, sessionID); err != nil {
+		return nil, err
+	}
+
+	return u.bookingRepo.GetBySessionID(ctx, sessionID)
+}
+
+func (u *BookingUsecase) GenerateAttendanceQR(ctx context.Context, requesterID int, role domain.UserRole, sessionID int) (string, time.Time, error) {
+	if err := u.ensureSessionAttendanceAccess(ctx, requesterID, role, sessionID); err != nil {
+		return "", time.Time{}, err
+	}
+
+	return auth.GenerateAttendanceQRToken(sessionID, attendanceQRTTL)
+}
+
+func (u *BookingUsecase) ScanAttendanceQR(ctx context.Context, userID int, token string) (*domain.AttendanceScanResult, error) {
+	claims, err := auth.ParseAttendanceQRToken(token)
+	if err != nil {
+		return nil, ErrInvalidAttendanceQR
+	}
+
+	booking, err := u.bookingRepo.GetByUserAndSession(ctx, userID, claims.SessionID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, ErrBookingNotFound
+		}
+		return nil, err
+	}
+
+	if booking.Status == domain.BookingStatusAttended {
+		return &domain.AttendanceScanResult{
+			BookingID:       booking.ID,
+			SessionID:       booking.SessionID,
+			Status:          string(domain.BookingStatusAttended),
+			AttendedAt:      booking.AttendedAt,
+			AlreadyAttended: true,
+		}, nil
+	}
+
+	if err := u.markBookingAttended(ctx, booking); err != nil {
+		return nil, err
+	}
+
+	updatedBooking, err := u.bookingRepo.GetByID(ctx, booking.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &domain.AttendanceScanResult{
+		BookingID:       updatedBooking.ID,
+		SessionID:       updatedBooking.SessionID,
+		Status:          string(updatedBooking.Status),
+		AttendedAt:      updatedBooking.AttendedAt,
+		AlreadyAttended: false,
+	}, nil
+}
+
+func (u *BookingUsecase) ensureSessionAttendanceAccess(ctx context.Context, requesterID int, role domain.UserRole, sessionID int) error {
+	if role == domain.RoleAdmin {
+		if _, err := u.sessionRepo.GetByID(ctx, sessionID); err != nil {
+			if errors.Is(err, repository.ErrNotFound) {
+				return errors.New("session not found")
+			}
+			return err
+		}
+		return nil
+	}
+
+	ownerID, err := u.sessionRepo.GetGymOwnerIDBySessionID(ctx, sessionID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return errors.New("session not found")
+		}
+		return err
+	}
+	if ownerID != requesterID {
+		return ErrSessionForbidden
+	}
+
+	return nil
+}
+
+func (u *BookingUsecase) markBookingAttended(ctx context.Context, booking *domain.Booking) error {
 	if booking.Status != domain.BookingStatusConfirmed {
 		return ErrBookingNotConfirmed
 	}
@@ -223,26 +321,9 @@ func (u *BookingUsecase) MarkAttended(ctx context.Context, bookingID int) error 
 	}
 	defer tx.Rollback()
 
-	if err = u.bookingRepo.MarkAttended(ctx, tx, bookingID); err != nil {
+	if err = u.bookingRepo.MarkAttended(ctx, tx, booking.ID); err != nil {
 		return err
 	}
 
 	return tx.Commit()
-}
-
-// GetMyBookings returns all bookings (with session detail) for the calling user.
-func (u *BookingUsecase) GetMyBookings(ctx context.Context, userID int) ([]domain.BookingDetail, error) {
-	return u.bookingRepo.GetDetailsByUserID(ctx, userID)
-}
-
-// GetSessionAttendees returns all bookings for a session.  Intended for admin/trainer use.
-func (u *BookingUsecase) GetSessionAttendees(ctx context.Context, sessionID int) ([]domain.BookingDetail, error) {
-	// Verify session exists first.
-	if _, err := u.sessionRepo.GetByID(ctx, sessionID); err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
-			return nil, errors.New("session not found")
-		}
-		return nil, err
-	}
-	return u.bookingRepo.GetBySessionID(ctx, sessionID)
 }

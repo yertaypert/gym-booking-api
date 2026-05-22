@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/yertaypert/gym-booking-api/internal/auth"
 	"github.com/yertaypert/gym-booking-api/internal/domain"
 )
 
@@ -15,19 +16,27 @@ type mockUserRepo struct {
 	err  error
 }
 
-func (m *mockUserRepo) GetByID(ctx context.Context, id int) (*domain.User, error)          { return m.user, m.err }
-func (m *mockUserRepo) Create(ctx context.Context, user domain.User) (int, error)          { return 1, nil }
-func (m *mockUserRepo) GetByEmail(ctx context.Context, email string) (*domain.User, error) { return m.user, m.err }
+func (m *mockUserRepo) GetByID(ctx context.Context, id int) (*domain.User, error) {
+	return m.user, m.err
+}
+func (m *mockUserRepo) Create(ctx context.Context, user domain.User) (int, error) { return 1, nil }
+func (m *mockUserRepo) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
+	return m.user, m.err
+}
 
 type mockSessionRepo struct {
 	session        *domain.Session
 	err            error
+	ownerID        int
 	decreaseCalled bool
 	increaseCalled bool
 }
 
 func (m *mockSessionRepo) GetByID(ctx context.Context, id int) (*domain.Session, error) {
 	return m.session, m.err
+}
+func (m *mockSessionRepo) GetGymOwnerIDBySessionID(ctx context.Context, sessionID int) (int, error) {
+	return m.ownerID, m.err
 }
 func (m *mockSessionRepo) DecreaseAvailableSlots(ctx context.Context, tx *sql.Tx, sessionID int) error {
 	m.decreaseCalled = true
@@ -59,6 +68,9 @@ func (m *mockBookingRepo) UpdateStatus(ctx context.Context, tx *sql.Tx, bookingI
 	return nil
 }
 func (m *mockBookingRepo) GetByID(ctx context.Context, bookingID int) (*domain.Booking, error) {
+	return m.booking, m.err
+}
+func (m *mockBookingRepo) GetByUserAndSession(ctx context.Context, userID, sessionID int) (*domain.Booking, error) {
 	return m.booking, m.err
 }
 func (m *mockBookingRepo) ExistsByUserAndSession(ctx context.Context, userID, sessionID int) (bool, error) {
@@ -341,5 +353,72 @@ func TestMarkAttended_WrongStatus(t *testing.T) {
 		if !errors.Is(err, ErrBookingNotConfirmed) {
 			t.Errorf("status %s: expected ErrBookingNotConfirmed, got: %v", status, err)
 		}
+	}
+}
+
+func TestGenerateAttendanceQR_ForbiddenForOtherOwner(t *testing.T) {
+	uc, _, sessionRepo, _ := newTestUsecase(nil, nil, nil)
+	sessionRepo.ownerID = 99
+
+	_, _, err := uc.GenerateAttendanceQR(context.Background(), 1, domain.RoleGymOwner, 10)
+
+	if !errors.Is(err, ErrSessionForbidden) {
+		t.Fatalf("expected ErrSessionForbidden, got: %v", err)
+	}
+}
+
+func TestGenerateAttendanceQR_AdminAllowed(t *testing.T) {
+	session := &domain.Session{ID: 10}
+	uc, _, _, _ := newTestUsecase(nil, session, nil)
+	auth.SetJWTSecret("test-secret")
+
+	token, expiresAt, err := uc.GenerateAttendanceQR(context.Background(), 1, domain.RoleAdmin, 10)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if token == "" {
+		t.Fatal("expected token to be generated")
+	}
+	if expiresAt.Before(time.Now()) {
+		t.Fatal("expected future expiry")
+	}
+}
+
+func TestScanAttendanceQR_InvalidToken(t *testing.T) {
+	uc, _, _, _ := newTestUsecase(nil, nil, nil)
+
+	_, err := uc.ScanAttendanceQR(context.Background(), 1, "not-a-token")
+
+	if !errors.Is(err, ErrInvalidAttendanceQR) {
+		t.Fatalf("expected ErrInvalidAttendanceQR, got: %v", err)
+	}
+}
+
+func TestScanAttendanceQR_AlreadyAttended(t *testing.T) {
+	auth.SetJWTSecret("test-secret")
+	token, _, err := auth.GenerateAttendanceQRToken(1, time.Minute)
+	if err != nil {
+		t.Fatalf("failed to generate token: %v", err)
+	}
+
+	now := time.Now()
+	booking := &domain.Booking{
+		ID:         7,
+		UserID:     1,
+		SessionID:  1,
+		Status:     domain.BookingStatusAttended,
+		AttendedAt: &now,
+	}
+
+	uc, _, _, _ := newTestUsecase(nil, nil, booking)
+	result, err := uc.ScanAttendanceQR(context.Background(), 1, token)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if !result.AlreadyAttended {
+		t.Fatal("expected already attended result")
+	}
+	if result.Status != string(domain.BookingStatusAttended) {
+		t.Fatalf("expected attended status, got: %s", result.Status)
 	}
 }

@@ -62,6 +62,32 @@ func (r *BookingRepository) GetByID(ctx context.Context, bookingID int) (*domain
 	}
 	return &booking, nil
 }
+
+func (r *BookingRepository) GetByUserAndSession(ctx context.Context, userID, sessionID int) (*domain.Booking, error) {
+	query := `SELECT id, user_id, session_id, status, created_at, attended_at FROM bookings WHERE user_id = $1 AND session_id = $2`
+	var booking domain.Booking
+	var attendedAt sql.NullTime
+
+	err := r.db.QueryRowContext(ctx, query, userID, sessionID).Scan(
+		&booking.ID,
+		&booking.UserID,
+		&booking.SessionID,
+		&booking.Status,
+		&booking.CreatedAt,
+		&attendedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	if attendedAt.Valid {
+		booking.AttendedAt = &attendedAt.Time
+	}
+	return &booking, nil
+}
+
 func (r *BookingRepository) GetByUserID(ctx context.Context, userID int) ([]domain.Booking, error) {
 	query := `SELECT id, user_id, session_id, status, created_at FROM bookings WHERE user_id = $1 ORDER BY created_at DESC`
 	rows, err := r.db.QueryContext(ctx, query, userID)

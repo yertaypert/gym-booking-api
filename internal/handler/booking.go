@@ -1,8 +1,10 @@
 package handler
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/yertaypert/gym-booking-api/internal/domain"
 	"github.com/yertaypert/gym-booking-api/internal/middleware"
@@ -116,6 +118,109 @@ func (h *BookingHandler) MarkAttended(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"message": "Attendance marked successfully"})
 }
 
+type GenerateAttendanceQRResponse struct {
+	Token     string `json:"token"`
+	ExpiresAt string `json:"expires_at"`
+}
+
+func (h *BookingHandler) GenerateAttendanceQR(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
+	if !ok {
+		writeError(w, "invalid user context", http.StatusUnauthorized)
+		return
+	}
+	role, ok := r.Context().Value(middleware.UserRoleKey).(domain.UserRole)
+	if !ok {
+		writeError(w, "invalid user role", http.StatusUnauthorized)
+		return
+	}
+	sessionID, err := parsePathID(r, "sessionId")
+	if err != nil {
+		writeError(w, "invalid session id", http.StatusBadRequest)
+		return
+	}
+
+	token, expiresAt, err := h.bookingUsecase.GenerateAttendanceQR(r.Context(), userID, role, sessionID)
+	if err != nil {
+		switch {
+		case errors.Is(err, usecase.ErrSessionForbidden):
+			writeError(w, err.Error(), http.StatusForbidden)
+		default:
+			if err.Error() == "session not found" {
+				writeError(w, err.Error(), http.StatusNotFound)
+				return
+			}
+			writeError(w, err.Error(), http.StatusBadRequest)
+		}
+		return
+	}
+
+	writeJSON(w, http.StatusOK, GenerateAttendanceQRResponse{
+		Token:     token,
+		ExpiresAt: expiresAt.UTC().Format(time.RFC3339),
+	})
+}
+
+type ScanAttendanceQRRequest struct {
+	Token string `json:"token"`
+}
+
+type ScanAttendanceQRResponse struct {
+	Message         string     `json:"message"`
+	BookingID       int        `json:"booking_id"`
+	SessionID       int        `json:"session_id"`
+	Status          string     `json:"status"`
+	AttendedAt      *time.Time `json:"attended_at,omitempty"`
+	AlreadyAttended bool       `json:"already_attended"`
+}
+
+func (h *BookingHandler) ScanAttendanceQR(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
+	if !ok {
+		writeError(w, "invalid user context", http.StatusUnauthorized)
+		return
+	}
+
+	var req ScanAttendanceQRRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	if req.Token == "" {
+		writeError(w, "token is required", http.StatusBadRequest)
+		return
+	}
+
+	result, err := h.bookingUsecase.ScanAttendanceQR(r.Context(), userID, req.Token)
+	if err != nil {
+		switch {
+		case errors.Is(err, usecase.ErrInvalidAttendanceQR):
+			writeError(w, err.Error(), http.StatusUnauthorized)
+		case errors.Is(err, usecase.ErrBookingNotFound):
+			writeError(w, err.Error(), http.StatusNotFound)
+		case errors.Is(err, usecase.ErrBookingNotConfirmed), errors.Is(err, usecase.ErrSessionNotStartedYet):
+			writeError(w, err.Error(), http.StatusConflict)
+		default:
+			writeError(w, err.Error(), http.StatusBadRequest)
+		}
+		return
+	}
+
+	message := "Attendance marked successfully"
+	if result.AlreadyAttended {
+		message = "Attendance already marked"
+	}
+
+	writeJSON(w, http.StatusOK, ScanAttendanceQRResponse{
+		Message:         message,
+		BookingID:       result.BookingID,
+		SessionID:       result.SessionID,
+		Status:          result.Status,
+		AttendedAt:      result.AttendedAt,
+		AlreadyAttended: result.AlreadyAttended,
+	})
+}
+
 // ─── GET /users/me/bookings ──────────────────────────────────────────────────
 
 func (h *BookingHandler) GetMyBookings(w http.ResponseWriter, r *http.Request) {
@@ -136,14 +241,33 @@ func (h *BookingHandler) GetMyBookings(w http.ResponseWriter, r *http.Request) {
 // ─── GET /sessions/{sessionId}/bookings  (admin only) ───────────────────────
 
 func (h *BookingHandler) GetSessionAttendees(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
+	if !ok {
+		writeError(w, "invalid user context", http.StatusUnauthorized)
+		return
+	}
+	role, ok := r.Context().Value(middleware.UserRoleKey).(domain.UserRole)
+	if !ok {
+		writeError(w, "invalid user role", http.StatusUnauthorized)
+		return
+	}
 	sessionID, err := parsePathID(r, "sessionId")
 	if err != nil {
 		writeError(w, "invalid session id", http.StatusBadRequest)
 		return
 	}
-	attendees, err := h.bookingUsecase.GetSessionAttendees(r.Context(), sessionID)
+	attendees, err := h.bookingUsecase.GetSessionAttendees(r.Context(), userID, role, sessionID)
 	if err != nil {
-		writeError(w, err.Error(), http.StatusBadRequest)
+		switch {
+		case errors.Is(err, usecase.ErrSessionForbidden):
+			writeError(w, err.Error(), http.StatusForbidden)
+		default:
+			if err.Error() == "session not found" {
+				writeError(w, err.Error(), http.StatusNotFound)
+				return
+			}
+			writeError(w, err.Error(), http.StatusBadRequest)
+		}
 		return
 	}
 

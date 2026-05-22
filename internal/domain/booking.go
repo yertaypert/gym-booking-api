@@ -38,3 +38,11 @@ type BookingDetail struct {
 	BookedAt   time.Time     `json:"booked_at"`
 	AttendedAt *time.Time    `json:"attended_at,omitempty"`
 }
+
+type AttendanceScanResult struct {
+	BookingID       int        `json:"booking_id"`
+	SessionID       int        `json:"session_id"`
+	Status          string     `json:"status"`
+	AttendedAt      *time.Time `json:"attended_at,omitempty"`
+	AlreadyAttended bool       `json:"already_attended"`
+}

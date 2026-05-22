@@ -39,6 +39,27 @@ func (r *sqlSessionRepository) GetByID(ctx context.Context, sessionID int) (*dom
 	return &session, nil
 }
 
+func (r *sqlSessionRepository) GetGymOwnerIDBySessionID(ctx context.Context, sessionID int) (int, error) {
+	query := `
+		SELECT g.owner_id
+		FROM class_sessions s
+		JOIN classes c ON c.id = s.class_id
+		JOIN gyms g ON g.id = c.gym_id
+		WHERE s.id = $1
+	`
+
+	var ownerID int
+	err := r.db.QueryRowContext(ctx, query, sessionID).Scan(&ownerID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, ErrNotFound
+		}
+		return 0, err
+	}
+
+	return ownerID, nil
+}
+
 func (r *sqlSessionRepository) DecreaseAvailableSlots(ctx context.Context, tx *sql.Tx, sessionID int) error {
 	query := `UPDATE class_sessions SET available_slots = available_slots - 1
               WHERE id = $1 AND available_slots > 0`
