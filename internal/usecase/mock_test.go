@@ -7,7 +7,7 @@ import (
 	"github.com/yertaypert/gym-booking-api/internal/domain"
 )
 
-// ─── mockUserRepo ─────────────────────────────────────────────────────────────
+// mockUserRepo
 
 type mockUserRepo struct {
 	user *domain.User
@@ -18,7 +18,7 @@ func (m *mockUserRepo) GetByID(id int) (*domain.User, error)          { return m
 func (m *mockUserRepo) Create(user domain.User) (int, error)          { return 1, nil }
 func (m *mockUserRepo) GetByEmail(email string) (*domain.User, error) { return m.user, m.err }
 
-// ─── mockSessionRepo ──────────────────────────────────────────────────────────
+// mockSessionRepo
 
 type mockSessionRepo struct {
 	session        *domain.Session
@@ -39,7 +39,7 @@ func (m *mockSessionRepo) IncreaseAvailableSlots(ctx context.Context, tx *sql.Tx
 	return nil
 }
 
-// ─── mockBookingRepo ──────────────────────────────────────────────────────────
+// mockBookingRepo
 
 type mockBookingRepo struct {
 	booking        *domain.Booking
@@ -80,7 +80,7 @@ func (m *mockBookingRepo) MarkAttended(ctx context.Context, tx *sql.Tx, bookingI
 	return nil
 }
 
-// ─── mockWalletRepo ───────────────────────────────────────────────────────────
+// mockWalletRepo
 
 type mockWalletRepo struct {
 	lastAmount float64
@@ -94,7 +94,7 @@ func (m *mockWalletRepo) CreateTransaction(tx *sql.Tx, userID int, bookingID *in
 	return nil
 }
 
-// ─── mockGymRepo ──────────────────────────────────────────────────────────────
+// mockGymRepo
 
 type mockGymRepo struct {
 	gym      *domain.Gym
@@ -120,7 +120,7 @@ func (m *mockGymRepo) ListSessionsByGymAndClassID(gymID, classID int) ([]domain.
 }
 func (m *mockGymRepo) AssignTrainer(gymID, trainerID int) error { return nil }
 
-// ─── Хелперы ──────────────────────────────────────────────────────────────────
+// Helpers
 
 func newTestUsecase(
 	user *domain.User,
