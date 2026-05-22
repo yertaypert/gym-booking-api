@@ -36,7 +36,7 @@ func TestParsePathIDInvalid(t *testing.T) {
 	}
 }
 
-// ─── мок репозитория для handler тестов ──────────────────────────────────────
+// mock repo for handler tests
 
 type mockGymRepoForHandler struct {
 	gym   *domain.Gym
@@ -63,7 +63,7 @@ func (m *mockGymRepoForHandler) ListSessionsByGymAndClassID(gymID, classID int) 
 }
 func (m *mockGymRepoForHandler) AssignTrainer(gymID, trainerID int) error { return nil }
 
-// ─── хелпер ──────────────────────────────────────────────────────────────────
+// Helper
 
 func newGymHandler(gym *domain.Gym, class *domain.Class, repoErr error) *GymHandler {
 	repo := &mockGymRepoForHandler{gym: gym, class: class, err: repoErr}
@@ -71,7 +71,7 @@ func newGymHandler(gym *domain.Gym, class *domain.Class, repoErr error) *GymHand
 	return NewGymHandler(uc)
 }
 
-// ─── GET /gyms/{id} ──────────────────────────────────────────────────────────
+// GET /gyms/{id} 
 
 func TestGetGym_NotFound(t *testing.T) {
 	h := newGymHandler(nil, nil, usecase.ErrGymNotFound)
@@ -119,7 +119,7 @@ func TestGetGym_Success(t *testing.T) {
 	}
 }
 
-// ─── POST /gyms ──────────────────────────────────────────────────────────────
+// POST /gyms
 
 func TestCreateGym_InvalidJSON(t *testing.T) {
 	h := newGymHandler(nil, nil, nil)
@@ -137,7 +137,6 @@ func TestCreateGym_InvalidJSON(t *testing.T) {
 func TestCreateGym_ValidationError(t *testing.T) {
 	h := newGymHandler(nil, nil, nil)
 
-	// ownerID=0 → ErrInvalidOwnerID → 400
 	body := `{"owner_id": 0, "name": "Gym", "address": "addr"}`
 	req := httptest.NewRequest(http.MethodPost, "/gyms", strings.NewReader(body))
 	rr := httptest.NewRecorder()
@@ -164,10 +163,9 @@ func TestCreateGym_Success(t *testing.T) {
 	}
 }
 
-// ─── POST /gyms/{id}/classes ─────────────────────────────────────────────────
+// POST /gyms/{id}/classes
 
 func TestCreateClass_Forbidden(t *testing.T) {
-	// gym принадлежит ownerID=99, запрос от userID=1
 	gym := &domain.Gym{ID: 1, OwnerID: 99}
 	h := newGymHandler(gym, nil, nil)
 
@@ -206,7 +204,7 @@ func TestCreateClass_Success(t *testing.T) {
 	}
 }
 
-// ─── POST /gyms/{gymId}/classes/{classId}/sessions ───────────────────────────
+// POST /gyms/{gymId}/classes/{classId}/sessions
 
 func TestCreateSession_InvalidTimeFormat(t *testing.T) {
 	gym := &domain.Gym{ID: 1, OwnerID: 10}
@@ -252,7 +250,7 @@ func TestCreateSession_Success(t *testing.T) {
 	}
 }
 
-// добавляет userID и role в контекст запроса
+// adds userID and role in context request
 func withUserContext(ctx context.Context, userID int, role domain.UserRole) context.Context {
 	ctx = context.WithValue(ctx, middleware.UserIDKey, userID)
 	ctx = context.WithValue(ctx, middleware.UserRoleKey, role)
