@@ -9,13 +9,13 @@ import (
 	"github.com/yertaypert/gym-booking-api/internal/domain"
 )
 
-// ─── Хелпер ──────────────────────────────────────────────────────────────────
+// Helper
 
 func newAuthUsecase(user *domain.User, repoErr error) *AuthUsecase {
 	return NewAuthUsecase(&mockUserRepo{user: user, err: repoErr})
 }
 
-// ─── Register ────────────────────────────────────────────────────────────────
+// Register
 
 func TestRegister_InvalidEmail(t *testing.T) {
 	uc := newAuthUsecase(nil, nil)
@@ -42,7 +42,7 @@ func TestRegister_EmptyFullName(t *testing.T) {
 }
 
 func TestRegister_Success(t *testing.T) {
-	// mockUserRepo.Create возвращает (1, nil) — регистрация проходит
+	// mockUserRepo.Create returns (1, nil) — success
 	uc := newAuthUsecase(nil, nil)
 	err := uc.Register("user@example.com", "StrongPass1", "John Doe")
 	if err != nil {
@@ -51,7 +51,6 @@ func TestRegister_Success(t *testing.T) {
 }
 
 func TestRegister_NormalizesEmail(t *testing.T) {
-	// Email с пробелами и заглавными — должен нормализоваться и пройти валидацию
 	uc := newAuthUsecase(nil, nil)
 	err := uc.Register("  USER@Example.COM  ", "StrongPass1", "John Doe")
 	if err != nil {
@@ -59,10 +58,10 @@ func TestRegister_NormalizesEmail(t *testing.T) {
 	}
 }
 
-// ─── Login ────────────────────────────────────────────────────────────────────
+//  Login
 
 func TestLogin_UserNotFound(t *testing.T) {
-	// mockUserRepo.GetByEmail вернёт ошибку — пользователь не найден
+	// mockUserRepo.GetByEmail error — user not found
 	uc := newAuthUsecase(nil, errors.New("not found"))
 	_, err := uc.Login("user@example.com", "StrongPass1")
 	if err == nil || err.Error() != "user not found" {
@@ -71,7 +70,7 @@ func TestLogin_UserNotFound(t *testing.T) {
 }
 
 func TestLogin_WrongPassword(t *testing.T) {
-	// Создаём пользователя с реальным bcrypt-хешем правильного пароля
+	// create user with bcrypt-hash password
 	hash, _ := bcrypt.GenerateFromPassword([]byte("CorrectPass1"), bcrypt.MinCost)
 	user := &domain.User{
 		ID:           1,
@@ -107,7 +106,7 @@ func TestLogin_Success(t *testing.T) {
 }
 
 func TestLogin_NormalizesEmail(t *testing.T) {
-	// Логин с заглавными буквами в email — должен нормализоваться и найти пользователя
+	// login with capitals in email should normalize
 	hash, _ := bcrypt.GenerateFromPassword([]byte("CorrectPass1"), bcrypt.MinCost)
 	user := &domain.User{
 		ID:           1,
