@@ -1,9 +1,14 @@
-ALTER TYPE user_role ADD VALUE 'trainer';
 CREATE TABLE trainers (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES users(id),
+    user_id INTEGER NOT NULL REFERENCES users(id) UNIQUE,
     specialization VARCHAR(50),
     extra_fee NUMERIC(10,2) NOT NULL
+);
+
+CREATE TABLE gym_trainers (
+    gym_id INTEGER REFERENCES gyms(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    PRIMARY KEY (gym_id, user_id)
 );
 
 CREATE TABLE trainer_slots (
@@ -13,6 +18,7 @@ CREATE TABLE trainer_slots (
     end_time TIMESTAMP NOT NULL,
     status VARCHAR(50) NOT NULL DEFAULT  'available'
 );
+
 CREATE TYPE slot_status AS ENUM ('available', 'booked', 'canceled');
 
 CREATE TABLE trainer_bookings (
@@ -23,4 +29,3 @@ CREATE TABLE trainer_bookings (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (trainer_slot_id)
 );
-

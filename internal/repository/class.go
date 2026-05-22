@@ -36,24 +36,21 @@ func (r *ClassRepository) ListDistinctClasses(ctx context.Context) ([]string, er
 	return classes, nil
 }
 
-type SessionWithGym struct {
-	domain.Session
-	GymName    string `json:"gym_name"`
-	GymAddress string `json:"gym_address"`
-	ClassName  string `json:"class_name"`
-}
-
 func (r *ClassRepository) SearchSessionsByClassName(
 	ctx context.Context,
 	name string,
 	startTime, endTime *time.Time,
-) ([]SessionWithGym, error) {
+	trainerOnly bool,
+) ([]domain.SessionWithGym, error) {
 	query := `
-		SELECT s.id, s.class_id, s.start_time, s.end_time, s.available_slots, s.price, s.status,
-		       g.name as gym_name, g.address as gym_address, c.name as class_name
+		SELECT s.id, s.class_id, s.trainer_id, s.start_time, s.end_time, s.available_slots, s.price, s.status,
+		       g.name as gym_name, g.address as gym_address, c.name as class_name,
+		       COALESCE(u.full_name, '') as trainer_name, COALESCE(t.specialization, '') as trainer_specialization
 		FROM class_sessions s
 		JOIN classes c ON s.class_id = c.id
 		JOIN gyms g ON c.gym_id = g.id
+		LEFT JOIN trainers t ON s.trainer_id = t.id
+		LEFT JOIN users u ON t.user_id = u.id
 		WHERE c.name ILIKE $1
 	`
 	args := []any{"%" + name + "%"}
@@ -69,6 +66,9 @@ func (r *ClassRepository) SearchSessionsByClassName(
 		args = append(args, *endTime)
 		argCount++
 	}
+	if trainerOnly {
+		query += " AND s.trainer_id IS NOT NULL"
+	}
 
 	query += ` ORDER BY s.start_time`
 
@@ -78,12 +78,12 @@ func (r *ClassRepository) SearchSessionsByClassName(
 	}
 	defer rows.Close()
 
-	var sessions []SessionWithGym
+	var sessions []domain.SessionWithGym
 	for rows.Next() {
-		var s SessionWithGym
+		var s domain.SessionWithGym
 		err := rows.Scan(
-			&s.ID, &s.ClassID, &s.StartTime, &s.EndTime, &s.AvailableSlots, &s.Price, &s.Status,
-			&s.GymName, &s.GymAddress, &s.ClassName,
+			&s.ID, &s.ClassID, &s.TrainerID, &s.StartTime, &s.EndTime, &s.AvailableSlots, &s.Price, &s.Status,
+			&s.GymName, &s.GymAddress, &s.ClassName, &s.TrainerName, &s.TrainerSpecialization,
 		)
 		if err != nil {
 			return nil, err
@@ -93,19 +93,22 @@ func (r *ClassRepository) SearchSessionsByClassName(
 	return sessions, nil
 }
 
-func (r *ClassRepository) GetSessionWithDetails(ctx context.Context, sessionID int) (*SessionWithGym, error) {
+func (r *ClassRepository) GetSessionWithDetails(ctx context.Context, sessionID int) (*domain.SessionWithGym, error) {
 	query := `
-		SELECT s.id, s.class_id, s.start_time, s.end_time, s.available_slots, s.price, s.status,
-		       g.name as gym_name, g.address as gym_address, c.name as class_name
+		SELECT s.id, s.class_id, s.trainer_id, s.start_time, s.end_time, s.available_slots, s.price, s.status,
+		       g.name as gym_name, g.address as gym_address, c.name as class_name,
+		       COALESCE(u.full_name, '') as trainer_name, COALESCE(t.specialization, '') as trainer_specialization
 		FROM class_sessions s
 		JOIN classes c ON s.class_id = c.id
 		JOIN gyms g ON c.gym_id = g.id
+		LEFT JOIN trainers t ON s.trainer_id = t.id
+		LEFT JOIN users u ON t.user_id = u.id
 		WHERE s.id = $1
 	`
-	var s SessionWithGym
+	var s domain.SessionWithGym
 	err := r.db.QueryRowContext(ctx, query, sessionID).Scan(
-		&s.ID, &s.ClassID, &s.StartTime, &s.EndTime, &s.AvailableSlots, &s.Price, &s.Status,
-		&s.GymName, &s.GymAddress, &s.ClassName,
+		&s.ID, &s.ClassID, &s.TrainerID, &s.StartTime, &s.EndTime, &s.AvailableSlots, &s.Price, &s.Status,
+		&s.GymName, &s.GymAddress, &s.ClassName, &s.TrainerName, &s.TrainerSpecialization,
 	)
 	if err != nil {
 		return nil, err
@@ -113,14 +116,7 @@ func (r *ClassRepository) GetSessionWithDetails(ctx context.Context, sessionID i
 	return &s, nil
 }
 
-type GymWithClass struct {
-	GymID      int    `json:"gym_id"`
-	GymName    string `json:"gym_name"`
-	GymAddress string `json:"gym_address"`
-	ClassID    int    `json:"class_id"`
-}
-
-func (r *ClassRepository) ListGymsByClassName(ctx context.Context, name string) ([]GymWithClass, error) {
+func (r *ClassRepository) ListGymsByClassName(ctx context.Context, name string) ([]domain.GymWithClass, error) {
 	query := `
 		SELECT g.id, g.name, g.address, c.id
 		FROM gyms g
@@ -133,9 +129,9 @@ func (r *ClassRepository) ListGymsByClassName(ctx context.Context, name string) 
 	}
 	defer rows.Close()
 
-	var gyms []GymWithClass
+	var gyms []domain.GymWithClass
 	for rows.Next() {
-		var g GymWithClass
+		var g domain.GymWithClass
 		if err := rows.Scan(&g.GymID, &g.GymName, &g.GymAddress, &g.ClassID); err != nil {
 			return nil, err
 		}

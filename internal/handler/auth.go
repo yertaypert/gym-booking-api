@@ -2,7 +2,6 @@ package handler
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 
 	"github.com/yertaypert/gym-booking-api/internal/middleware"
@@ -44,17 +43,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	err = h.usecase.Register(req.Email, req.Password, req.FullName)
 	if err != nil {
-		if errors.Is(err, usecase.ErrInvalidEmail) || errors.Is(err, usecase.ErrInvalidFullName) || errors.Is(err, usecase.ErrWeakPassword) {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		if errors.Is(err, usecase.ErrEmailAlreadyExists) {
-			http.Error(w, err.Error(), http.StatusConflict)
-			return
-		}
-
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		HandleError(w, err)
 		return
 	}
 
@@ -78,7 +67,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	token, err := h.usecase.Login(req.Email, req.Password)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		HandleError(w, err)
 		return
 	}
 
@@ -100,7 +89,7 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.usecase.Me(userID)
 	if err != nil {
-		http.Error(w, "user not found", http.StatusNotFound)
+		HandleError(w, err)
 		return
 	}
 

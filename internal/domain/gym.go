@@ -7,3 +7,9 @@ type Gym struct {
 	Address     string `json:"address"`
 	Description string `json:"description"`
 }
+
+type GymWithTrainers struct {
+	GymID    int           `json:"gym_id"`
+	GymName  string        `json:"gym_name"`
+	Trainers []TrainerInfo `json:"trainers"`
+}

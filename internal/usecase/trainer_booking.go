@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/yertaypert/gym-booking-api/internal/domain"
+	"github.com/yertaypert/gym-booking-api/internal/repository"
 )
 
 var (
@@ -19,10 +20,7 @@ type TrainerBookingUsecase struct {
 	trainerBookingRepo TrainerBookingRepository
 }
 
-func NewTrainerBookingUsecase(
-	trainerSlotRepo TrainerSlotRepository,
-	trainerBookingRepo TrainerBookingRepository,
-) *TrainerBookingUsecase {
+func NewTrainerBookingUsecase(trainerSlotRepo TrainerSlotRepository, trainerBookingRepo *repository.TrainerBookingRepository) *TrainerBookingUsecase {
 	return &TrainerBookingUsecase{
 		trainerSlotRepo:    trainerSlotRepo,
 		trainerBookingRepo: trainerBookingRepo,

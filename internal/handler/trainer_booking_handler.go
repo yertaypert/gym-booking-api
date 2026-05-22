@@ -10,6 +10,7 @@ import (
 )
 
 type TrainerBookingHandler struct {
+	trainerSlotUsecase    *usecase.TrainerSlotUsecase
 	trainerBookingUsecase *usecase.TrainerBookingUsecase
 }
 

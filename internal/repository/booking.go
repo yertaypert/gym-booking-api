@@ -4,9 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
-	"strings"
 
+	"github.com/lib/pq"
 	"github.com/yertaypert/gym-booking-api/internal/domain"
 )
 
@@ -23,9 +22,8 @@ func (r *BookingRepository) Create(tx *sql.Tx, userID, sessionID int) (int, erro
 	query := `INSERT INTO bookings (user_id, session_id, status) VALUES ($1, $2, 'pending') RETURNING id`
 	err := tx.QueryRow(query, userID, sessionID).Scan(&id)
 	if err != nil {
-		if strings.Contains(err.Error(), "unique_user_session") ||
-			strings.Contains(err.Error(), "unique constraint") {
-			return 0, fmt.Errorf("you are already booked for this session")
+		if pgErr, ok := err.(*pq.Error); ok && pgErr.Code == "23505" {
+			return 0, domain.ErrAlreadyBooked
 		}
 		return 0, err
 	}
@@ -34,7 +32,14 @@ func (r *BookingRepository) Create(tx *sql.Tx, userID, sessionID int) (int, erro
 
 func (r *BookingRepository) UpdateStatus(ctx context.Context, tx *sql.Tx, bookingID int, status string) error {
 	query := `UPDATE bookings SET status = $1 WHERE id = $2`
-	_, err := tx.ExecContext(ctx, query, status, bookingID)
+	res, err := tx.ExecContext(ctx, query, status, bookingID)
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err == nil && rows == 0 {
+		return domain.ErrBookingNotFound
+	}
 	return err
 }
 
@@ -52,6 +57,9 @@ func (r *BookingRepository) GetByID(ctx context.Context, bookingID int) (*domain
 		&attendedAt,
 	)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, domain.ErrBookingNotFound
+		}
 		return nil, err
 	}
 	if attendedAt.Valid {
@@ -59,6 +67,7 @@ func (r *BookingRepository) GetByID(ctx context.Context, bookingID int) (*domain
 	}
 	return &booking, nil
 }
+
 func (r *BookingRepository) GetByUserID(ctx context.Context, userID int) ([]domain.Booking, error) {
 	query := `SELECT id, user_id, session_id, status, created_at FROM bookings WHERE user_id = $1 ORDER BY created_at DESC`
 	rows, err := r.db.QueryContext(ctx, query, userID)
@@ -87,6 +96,7 @@ func (r *BookingRepository) GetByUserID(ctx context.Context, userID int) ([]doma
 	}
 	return bookings, nil
 }
+
 func (r *BookingRepository) ExistsByUserAndSession(ctx context.Context, userID, sessionID int) (bool, error) {
 	var exists bool
 	query := `SELECT EXISTS(
@@ -97,7 +107,6 @@ func (r *BookingRepository) ExistsByUserAndSession(ctx context.Context, userID, 
 	return exists, err
 }
 
-// GetDetailsByUserID возвращает детальную информацию о бронированиях пользователя
 func (r *BookingRepository) GetDetailsByUserID(ctx context.Context, userID int) ([]domain.BookingDetail, error) {
 	query := `
        SELECT
@@ -125,7 +134,6 @@ func (r *BookingRepository) GetDetailsByUserID(ctx context.Context, userID int) 
 	return r.scanBookingDetails(ctx, query, userID)
 }
 
-// GetBySessionID возвращает список участников сессии
 func (r *BookingRepository) GetBySessionID(ctx context.Context, sessionID int) ([]domain.BookingDetail, error) {
 	query := `
        SELECT
@@ -153,7 +161,6 @@ func (r *BookingRepository) GetBySessionID(ctx context.Context, sessionID int) (
 	return r.scanBookingDetails(ctx, query, sessionID)
 }
 
-// ListByGymID — метод из ветки develop
 func (r *BookingRepository) ListByGymID(ctx context.Context, gymID int) ([]domain.Booking, error) {
 	query := `
        SELECT b.id, b.user_id, b.session_id, b.status, b.created_at
@@ -235,8 +242,13 @@ func (r *BookingRepository) scanBookingDetails(ctx context.Context, query string
 
 func (r *BookingRepository) MarkAttended(ctx context.Context, tx *sql.Tx, bookingID int) error {
 	query := `UPDATE bookings SET status = 'attended', attended_at = NOW() WHERE id = $1`
-	_, err := tx.ExecContext(ctx, query, bookingID)
+	res, err := tx.ExecContext(ctx, query, bookingID)
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err == nil && rows == 0 {
+		return domain.ErrBookingNotFound
+	}
 	return err
 }
-
-var ErrNoRows = errors.New("record not found")

@@ -75,7 +75,9 @@ func (h *ClassHandler) SearchSessions(w http.ResponseWriter, r *http.Request) {
 		endTime = &et
 	}
 
-	sessions, err := h.usecase.SearchSessions(r.Context(), name, startTime, endTime)
+	trainerOnly := r.URL.Query().Get("trainer") == "true"
+
+	sessions, err := h.usecase.SearchSessions(r.Context(), name, startTime, endTime, trainerOnly)
 	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
