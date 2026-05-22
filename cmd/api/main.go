@@ -45,6 +45,7 @@ func main() {
 	transactionUsecase := usecase.NewTransactionUsecase(transactionRepo)
 	walletUsecase := usecase.NewWalletUsecase(db, walletRepo)
 	trainerBookingUsecase := usecase.NewTrainerBookingUsecase(trainerSlotRepo, trainerBookingRepo)
+	trainerSlotUsecase := usecase.NewTrainerSlotUsecase(trainerSlotRepo)
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(authUsecase)
@@ -54,6 +55,7 @@ func main() {
 	transactionHandler := handler.NewTransactionHandler(transactionUsecase)
 	walletHandler := handler.NewWalletHandler(walletUsecase)
 	trainerBookingHandler := handler.NewTrainerBookingHandler(trainerBookingUsecase)
+	trainerSlotHandler := handler.NewTrainerSlotHandler(trainerSlotUsecase)
 
 	mux := http.NewServeMux()
 
@@ -70,10 +72,25 @@ func main() {
 	mux.HandleFunc("GET /classes/{name}/sessions", classHandler.SearchSessions)
 	mux.HandleFunc("GET /sessions/{id}", classHandler.GetSession)
 
+	mux.HandleFunc("GET /available-slots", trainerSlotHandler.ListAvailableSlots)
+
 	mux.Handle(
 		"GET /me/bookings",
 		middleware.AuthMiddleware(http.HandlerFunc(bookingHandler.GetMyBookings)),
 	)
+	// for booking trainer slots
+	mux.Handle(
+		"POST /trainer-slots/{id}/book",
+		middleware.AuthMiddleware(http.HandlerFunc(trainerBookingHandler.BookTrainerSlot)),
+	)
+	// эндпойнт для того, чтобы видеть свои букингсы
+	mux.Handle(
+		"GET /me/trainer-bookings",
+		middleware.AuthMiddleware(http.HandlerFunc(trainerBookingHandler.GetMyTrainerBookings)))
+	// а это для того, чтобы отменять букинг
+	mux.Handle(
+		"POST /trainer-bookings/{id}/cancel",
+		middleware.AuthMiddleware(http.HandlerFunc(trainerBookingHandler.CancelTrainerBooking)))
 	mux.Handle(
 		"POST /gyms",
 		middleware.AuthMiddleware(
@@ -99,10 +116,6 @@ func main() {
 		),
 	)
 	mux.Handle(
-		"POST /trainer-slots/{id}/book",
-		middleware.AuthMiddleware(http.HandlerFunc(trainerBookingHandler.BookTrainerSlot)),
-	)
-	mux.Handle(
 		"POST /sessions/{sessionId}/bookings",
 		middleware.AuthMiddleware(http.HandlerFunc(bookingHandler.CreateBooking)),
 	)
@@ -120,6 +133,14 @@ func main() {
 		"POST /gyms/{id}/trainers",
 		middleware.AuthMiddleware(
 			middleware.RequireRoles(domain.RoleAdmin, domain.RoleGymOwner)(http.HandlerFunc(gymHandler.AssignTrainer)),
+		),
+	)
+	mux.Handle(
+		"POST/trainer-slots",
+		middleware.AuthMiddleware(middleware.RequireRoles(
+			domain.RoleAdmin,
+			domain.RoleGymOwner,
+			domain.RoleTrainer)(http.HandlerFunc(trainerSlotHandler.CreateTrainerSlot)),
 		),
 	)
 	// Mark a booking as attended — admin only

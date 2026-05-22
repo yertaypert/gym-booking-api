@@ -24,4 +24,3 @@ CREATE TABLE trainer_bookings (
     UNIQUE (trainer_slot_id)
 );
 
--- CREATE TYPE booking_status AS ENUM ('active', 'cancelled', 'completed');
