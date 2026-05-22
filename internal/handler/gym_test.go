@@ -251,3 +251,10 @@ func TestCreateSession_Success(t *testing.T) {
 		t.Fatalf("expected 201, got %d", rr.Code)
 	}
 }
+
+// добавляет userID и role в контекст запроса
+func withUserContext(ctx context.Context, userID int, role domain.UserRole) context.Context {
+	ctx = context.WithValue(ctx, middleware.UserIDKey, userID)
+	ctx = context.WithValue(ctx, middleware.UserRoleKey, role)
+	return ctx
+}
