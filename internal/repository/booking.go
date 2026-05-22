@@ -4,9 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
-	"strings"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/yertaypert/gym-booking-api/internal/domain"
 )
 
@@ -23,9 +22,9 @@ func (r *BookingRepository) Create(ctx context.Context, tx *sql.Tx, userID, sess
 	query := `INSERT INTO bookings (user_id, session_id, status) VALUES ($1, $2, 'pending') RETURNING id`
 	err := tx.QueryRowContext(ctx, query, userID, sessionID).Scan(&id)
 	if err != nil {
-		if strings.Contains(err.Error(), "unique_user_session") ||
-			strings.Contains(err.Error(), "unique constraint") {
-			return 0, fmt.Errorf("you are already booked for this session")
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return 0, ErrAlreadyExists
 		}
 		return 0, err
 	}
@@ -52,6 +51,9 @@ func (r *BookingRepository) GetByID(ctx context.Context, bookingID int) (*domain
 		&attendedAt,
 	)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
 		return nil, err
 	}
 	if attendedAt.Valid {

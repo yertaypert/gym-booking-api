@@ -7,9 +7,9 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/yertaypert/gym-booking-api/internal/auth"
 	"github.com/yertaypert/gym-booking-api/internal/domain"
+	"github.com/yertaypert/gym-booking-api/internal/repository"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -49,8 +49,7 @@ func (u *AuthUsecase) Register(ctx context.Context, email, password, fullName st
 
 	_, err = u.userRepo.Create(ctx, newUser)
 	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		if errors.Is(err, repository.ErrAlreadyExists) {
 			return ErrEmailAlreadyExists
 		}
 	}

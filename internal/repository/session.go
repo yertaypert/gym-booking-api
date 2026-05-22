@@ -31,6 +31,9 @@ func (r *sqlSessionRepository) GetByID(ctx context.Context, sessionID int) (*dom
 		&session.Status,
 	)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
 		return nil, err
 	}
 	return &session, nil

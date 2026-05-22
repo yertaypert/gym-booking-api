@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/yertaypert/gym-booking-api/internal/domain"
+	"github.com/yertaypert/gym-booking-api/internal/repository"
 )
 
 var (
@@ -106,6 +107,9 @@ func (u *BookingUsecase) CreateBooking(ctx context.Context, userID, sessionID in
 
 	bookingID, err := u.bookingRepo.Create(ctx, tx, userID, sessionID)
 	if err != nil {
+		if errors.Is(err, repository.ErrAlreadyExists) {
+			return 0, errors.New("you are already booked for this session")
+		}
 		return 0, err
 	}
 
@@ -136,7 +140,7 @@ func (u *BookingUsecase) CreateBooking(ctx context.Context, userID, sessionID in
 func (u *BookingUsecase) CancelBooking(ctx context.Context, requesterID, bookingID int, isAdmin bool) error {
 	booking, err := u.bookingRepo.GetByID(ctx, bookingID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, repository.ErrNotFound) {
 			return ErrBookingNotFound
 		}
 		return err
@@ -192,7 +196,7 @@ func (u *BookingUsecase) GetUserBookings(ctx context.Context, userID int) ([]dom
 func (u *BookingUsecase) MarkAttended(ctx context.Context, bookingID int) error {
 	booking, err := u.bookingRepo.GetByID(ctx, bookingID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, repository.ErrNotFound) {
 			return ErrBookingNotFound
 		}
 		return err
@@ -235,7 +239,7 @@ func (u *BookingUsecase) GetMyBookings(ctx context.Context, userID int) ([]domai
 func (u *BookingUsecase) GetSessionAttendees(ctx context.Context, sessionID int) ([]domain.BookingDetail, error) {
 	// Verify session exists first.
 	if _, err := u.sessionRepo.GetByID(ctx, sessionID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, repository.ErrNotFound) {
 			return nil, errors.New("session not found")
 		}
 		return nil, err

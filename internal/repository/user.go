@@ -3,6 +3,9 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
+
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/yertaypert/gym-booking-api/internal/domain"
 )
 
@@ -21,6 +24,10 @@ func (r *UserRepository) Create(ctx context.Context, u domain.User) (int, error)
 
 	err := r.db.QueryRowContext(ctx, query, u.Email, u.PasswordHash, u.FullName, u.Role, u.Balance).Scan(&id)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return 0, ErrAlreadyExists
+		}
 		return 0, err
 	}
 	return id, nil
@@ -32,6 +39,9 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*domain.
 
 	err := r.db.QueryRowContext(ctx, query, email).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.FullName, &u.Role, &u.Balance)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
 		return nil, err
 	}
 	return u, nil
@@ -43,6 +53,9 @@ func (r *UserRepository) GetByID(ctx context.Context, id int) (*domain.User, err
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(&u.ID, &u.Email, &u.FullName, &u.Role, &u.Balance, &u.CreatedAt)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
 		return nil, err
 	}
 	return u, nil

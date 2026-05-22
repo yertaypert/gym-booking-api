@@ -15,8 +15,18 @@ func NewWalletRepository(db *sql.DB) *WalletRepository {
 
 func (r *WalletRepository) UpdateBalance(ctx context.Context, tx *sql.Tx, userID int, amount float64) error {
 	query := `UPDATE users SET balance = balance + $1 WHERE id = $2`
-	_, err := tx.ExecContext(ctx, query, amount, userID)
-	return err
+	result, err := tx.ExecContext(ctx, query, amount, userID)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (r *WalletRepository) CreateTransaction(ctx context.Context, tx *sql.Tx, userID int, bookingID *int, amount float64, txType string) error {
