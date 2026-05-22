@@ -46,13 +46,12 @@ func TestRequireRolesRejectsNonMatchingRole(t *testing.T) {
 	}
 }
 
-// TestRequireRoles_NoRoleInContext — нет ключа в контексте вообще
+// TestRequireRoles_NoRoleInContext
 func TestRequireRoles_NoRoleInContext(t *testing.T) {
 	handler := RequireRoles(domain.RoleAdmin)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
-	// контекст пустой — UserRoleKey не установлен
 	req := httptest.NewRequest(http.MethodGet, "/admin/me", nil)
 	rr := httptest.NewRecorder()
 
@@ -63,7 +62,7 @@ func TestRequireRoles_NoRoleInContext(t *testing.T) {
 	}
 }
 
-// TestRequireRoles_MultipleRoles_FirstMatches — роль есть в списке (первая)
+// TestRequireRoles_MultipleRoles_FirstMatches
 func TestRequireRoles_MultipleRoles_FirstMatches(t *testing.T) {
 	handler := RequireRoles(domain.RoleAdmin, domain.RoleGymOwner)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -80,7 +79,7 @@ func TestRequireRoles_MultipleRoles_FirstMatches(t *testing.T) {
 	}
 }
 
-// TestRequireRoles_MultipleRoles_SecondMatches — роль есть в списке (вторая)
+// TestRequireRoles_MultipleRoles_SecondMatches
 func TestRequireRoles_MultipleRoles_SecondMatches(t *testing.T) {
 	handler := RequireRoles(domain.RoleAdmin, domain.RoleGymOwner)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
