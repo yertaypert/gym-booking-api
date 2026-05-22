@@ -6,7 +6,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/lib/pq"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/yertaypert/gym-booking-api/internal/domain"
 )
 
@@ -67,7 +67,7 @@ func (r *GymRepository) CreateGym(ctx context.Context, gym domain.Gym) (*domain.
 		gym.Description,
 	).Scan(&created.ID, &ownerID, &created.Name, &created.Address, &created.Description)
 	if err != nil {
-		if pgErr, ok := err.(*pq.Error); ok {
+		if pgErr, ok := err.(*pgconn.PgError); ok {
 			if pgErr.Code == "23505" {
 				return nil, ErrGymAlreadyExists
 			}
@@ -335,7 +335,7 @@ func (r *GymRepository) AssignTrainer(ctx context.Context, gymID int, trainerID 
 
 	_, err := r.db.ExecContext(ctx, `INSERT INTO gym_trainers (gym_id, user_id) VALUES ($1, $2)`, gymID, trainerID)
 	if err != nil {
-		if pgErr, ok := err.(*pq.Error); ok && pgErr.Code == "23505" {
+		if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == "23505" {
 			return errors.New("trainer is already assigned to this gym")
 		}
 		return err
