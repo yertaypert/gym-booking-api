@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/yertaypert/gym-booking-api/internal/domain"
@@ -240,16 +239,6 @@ func (h *GymHandler) CreateSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusCreated, session)
-}
-
-func parsePathID(r *http.Request, name string) (int, error) {
-	return strconv.Atoi(r.PathValue(name))
-}
-
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v)
 }
 
 func (h *GymHandler) AssignTrainer(w http.ResponseWriter, r *http.Request) {

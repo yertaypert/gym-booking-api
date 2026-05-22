@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 
@@ -28,27 +27,29 @@ type CreateBookingResponse struct {
 func (h *BookingHandler) CreateBooking(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
 	if !ok {
-		http.Error(w, "invalid user context", http.StatusUnauthorized)
+		writeError(w, "invalid user context", http.StatusUnauthorized)
 		return
 	}
 	sessionID, err := parsePathID(r, "sessionId")
 	if err != nil {
-		http.Error(w, "invalid session id", http.StatusBadRequest)
+		writeError(w, "invalid session id", http.StatusBadRequest)
 		return
 	}
 	bookingID, err := h.bookingUsecase.CreateBooking(r.Context(), userID, sessionID)
 	if err != nil {
 		switch {
 		case errors.Is(err, usecase.ErrSessionNotActive), errors.Is(err, usecase.ErrSessionInPast):
-			http.Error(w, err.Error(), http.StatusConflict)
+			writeError(w, err.Error(), http.StatusConflict)
 		default:
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			writeError(w, err.Error(), http.StatusBadRequest)
 		}
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(CreateBookingResponse{BookingID: bookingID, Message: "Booking created successfully"})
+
+	writeJSON(w, http.StatusCreated, CreateBookingResponse{
+		BookingID: bookingID,
+		Message:   "Booking created successfully",
+	})
 }
 
 // ─── POST /bookings/{bookingId}/cancel ──────────────────────────────────────
@@ -60,33 +61,33 @@ type CancelBookingResponse struct {
 func (h *BookingHandler) CancelBooking(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
 	if !ok {
-		http.Error(w, "invalid user context", http.StatusUnauthorized)
+		writeError(w, "invalid user context", http.StatusUnauthorized)
 		return
 	}
 	role, ok := r.Context().Value(middleware.UserRoleKey).(domain.UserRole)
 	if !ok {
-		http.Error(w, "invalid user role", http.StatusUnauthorized)
+		writeError(w, "invalid user role", http.StatusUnauthorized)
 		return
 	}
 	bookingID, err := parsePathID(r, "bookingId")
 	if err != nil {
-		http.Error(w, "invalid booking id", http.StatusBadRequest)
+		writeError(w, "invalid booking id", http.StatusBadRequest)
 		return
 	}
 	err = h.bookingUsecase.CancelBooking(r.Context(), userID, bookingID, role == domain.RoleAdmin)
 	if err != nil {
 		switch {
 		case errors.Is(err, usecase.ErrBookingNotFound):
-			http.Error(w, err.Error(), http.StatusNotFound)
+			writeError(w, err.Error(), http.StatusNotFound)
 		case errors.Is(err, usecase.ErrBookingForbidden):
-			http.Error(w, err.Error(), http.StatusForbidden)
+			writeError(w, err.Error(), http.StatusForbidden)
 		default:
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			writeError(w, err.Error(), http.StatusBadRequest)
 		}
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(CancelBookingResponse{Message: "Booking cancelled successfully"})
+
+	writeJSON(w, http.StatusOK, CancelBookingResponse{Message: "Booking cancelled successfully"})
 }
 
 // ─── POST /bookings/{bookingId}/attend  (admin only) ────────────────────────
@@ -94,25 +95,25 @@ func (h *BookingHandler) CancelBooking(w http.ResponseWriter, r *http.Request) {
 func (h *BookingHandler) MarkAttended(w http.ResponseWriter, r *http.Request) {
 	bookingID, err := parsePathID(r, "bookingId")
 	if err != nil {
-		http.Error(w, "invalid booking id", http.StatusBadRequest)
+		writeError(w, "invalid booking id", http.StatusBadRequest)
 		return
 	}
 	err = h.bookingUsecase.MarkAttended(r.Context(), bookingID)
 	if err != nil {
 		switch {
 		case errors.Is(err, usecase.ErrBookingNotFound):
-			http.Error(w, err.Error(), http.StatusNotFound)
+			writeError(w, err.Error(), http.StatusNotFound)
 		case errors.Is(err, usecase.ErrAlreadyAttended),
 			errors.Is(err, usecase.ErrBookingNotConfirmed),
 			errors.Is(err, usecase.ErrSessionNotStartedYet):
-			http.Error(w, err.Error(), http.StatusConflict)
+			writeError(w, err.Error(), http.StatusConflict)
 		default:
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			writeError(w, err.Error(), http.StatusBadRequest)
 		}
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]string{"message": "Attendance marked successfully"})
+
+	writeJSON(w, http.StatusOK, map[string]string{"message": "Attendance marked successfully"})
 }
 
 // ─── GET /users/me/bookings ──────────────────────────────────────────────────
@@ -120,16 +121,16 @@ func (h *BookingHandler) MarkAttended(w http.ResponseWriter, r *http.Request) {
 func (h *BookingHandler) GetMyBookings(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
 	if !ok {
-		http.Error(w, "invalid user context", http.StatusUnauthorized)
+		writeError(w, "invalid user context", http.StatusUnauthorized)
 		return
 	}
 	bookings, err := h.bookingUsecase.GetMyBookings(r.Context(), userID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		writeError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(bookings)
+
+	writeJSON(w, http.StatusOK, bookings)
 }
 
 // ─── GET /sessions/{sessionId}/bookings  (admin only) ───────────────────────
@@ -137,33 +138,33 @@ func (h *BookingHandler) GetMyBookings(w http.ResponseWriter, r *http.Request) {
 func (h *BookingHandler) GetSessionAttendees(w http.ResponseWriter, r *http.Request) {
 	sessionID, err := parsePathID(r, "sessionId")
 	if err != nil {
-		http.Error(w, "invalid session id", http.StatusBadRequest)
+		writeError(w, "invalid session id", http.StatusBadRequest)
 		return
 	}
 	attendees, err := h.bookingUsecase.GetSessionAttendees(r.Context(), sessionID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(attendees)
+
+	writeJSON(w, http.StatusOK, attendees)
 }
 
 func (h *BookingHandler) ListGymBookings(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
 	if !ok {
-		http.Error(w, "invalid user context", http.StatusUnauthorized)
+		writeError(w, "invalid user context", http.StatusUnauthorized)
 		return
 	}
 	role, ok := r.Context().Value(middleware.UserRoleKey).(domain.UserRole)
 	if !ok {
-		http.Error(w, "invalid user role", http.StatusUnauthorized)
+		writeError(w, "invalid user role", http.StatusUnauthorized)
 		return
 	}
 
 	gymID, err := parsePathID(r, "id")
 	if err != nil {
-		http.Error(w, "invalid gym id", http.StatusBadRequest)
+		writeError(w, "invalid gym id", http.StatusBadRequest)
 		return
 	}
 
@@ -171,14 +172,12 @@ func (h *BookingHandler) ListGymBookings(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		switch {
 		case errors.Is(err, usecase.ErrBookingForbidden):
-			http.Error(w, err.Error(), http.StatusForbidden)
+			writeError(w, err.Error(), http.StatusForbidden)
 		default:
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			writeError(w, err.Error(), http.StatusInternalServerError)
 		}
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(bookings)
+	writeJSON(w, http.StatusOK, bookings)
 }

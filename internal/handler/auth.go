@@ -30,7 +30,7 @@ type LoginRequest struct {
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -38,23 +38,23 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		http.Error(w, "invalid request", http.StatusBadRequest)
+		writeError(w, "invalid request", http.StatusBadRequest)
 		return
 	}
 
 	err = h.usecase.Register(r.Context(), req.Email, req.Password, req.FullName)
 	if err != nil {
 		if errors.Is(err, usecase.ErrInvalidEmail) || errors.Is(err, usecase.ErrInvalidFullName) || errors.Is(err, usecase.ErrWeakPassword) {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			writeError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
 		if errors.Is(err, usecase.ErrEmailAlreadyExists) {
-			http.Error(w, err.Error(), http.StatusConflict)
+			writeError(w, err.Error(), http.StatusConflict)
 			return
 		}
 
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		writeError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -64,7 +64,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -72,38 +72,31 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		http.Error(w, "invalid request", http.StatusBadRequest)
+		writeError(w, "invalid request", http.StatusBadRequest)
 		return
 	}
 
 	token, err := h.usecase.Login(r.Context(), req.Email, req.Password)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		writeError(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
-	response := map[string]string{
-		"token": token,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSON(w, http.StatusOK, map[string]string{"token": token})
 }
 
 func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
-
 	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
 	if !ok {
-		http.Error(w, "invalid user context", http.StatusUnauthorized)
+		writeError(w, "invalid user context", http.StatusUnauthorized)
 		return
 	}
 
 	user, err := h.usecase.Me(r.Context(), userID)
 	if err != nil {
-		http.Error(w, "user not found", http.StatusNotFound)
+		writeError(w, "user not found", http.StatusNotFound)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(user)
+	writeJSON(w, http.StatusOK, user)
 }
