@@ -174,7 +174,7 @@ func (u *GymUsecase) CreateSession(ctx context.Context, userID int, userRole dom
 		EndTime:        endTime,
 		AvailableSlots: class.MaxCapacity,
 		Price:          price,
-		Status:         "active",
+		Status:         domain.SessionStatusActive,
 	}
 
 	created, err := u.gymRepo.CreateSession(ctx, gymID, session)

@@ -121,7 +121,7 @@ func (u *BookingUsecase) CreateBooking(ctx context.Context, userID, sessionID in
 		return 0, err
 	}
 
-	if err = u.bookingRepo.UpdateStatus(ctx, tx, bookingID, "confirmed"); err != nil {
+	if err = u.bookingRepo.UpdateStatus(ctx, tx, bookingID, string(domain.BookingStatusConfirmed)); err != nil {
 		return 0, err
 	}
 
@@ -166,7 +166,7 @@ func (u *BookingUsecase) CancelBooking(ctx context.Context, requesterID, booking
 	}
 	defer tx.Rollback()
 
-	if err = u.bookingRepo.UpdateStatus(ctx, tx, bookingID, "cancelled"); err != nil {
+	if err = u.bookingRepo.UpdateStatus(ctx, tx, bookingID, string(domain.BookingStatusCancelled)); err != nil {
 		return err
 	}
 
@@ -202,10 +202,10 @@ func (u *BookingUsecase) MarkAttended(ctx context.Context, bookingID int) error 
 		return err
 	}
 
-	if booking.Status == "attended" {
+	if booking.Status == domain.BookingStatusAttended {
 		return ErrAlreadyAttended
 	}
-	if booking.Status != "confirmed" {
+	if booking.Status != domain.BookingStatusConfirmed {
 		return ErrBookingNotConfirmed
 	}
 

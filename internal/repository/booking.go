@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/yertaypert/gym-booking-api/internal/domain"
@@ -19,7 +20,7 @@ func NewBookingRepository(db *sql.DB) *BookingRepository {
 
 func (r *BookingRepository) Create(ctx context.Context, tx *sql.Tx, userID, sessionID int) (int, error) {
 	var id int
-	query := `INSERT INTO bookings (user_id, session_id, status) VALUES ($1, $2, 'pending') RETURNING id`
+	query := fmt.Sprintf(`INSERT INTO bookings (user_id, session_id, status) VALUES ($1, $2, '%s') RETURNING id`, domain.BookingStatusPending)
 	err := tx.QueryRowContext(ctx, query, userID, sessionID).Scan(&id)
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -236,7 +237,7 @@ func (r *BookingRepository) scanBookingDetails(ctx context.Context, query string
 }
 
 func (r *BookingRepository) MarkAttended(ctx context.Context, tx *sql.Tx, bookingID int) error {
-	query := `UPDATE bookings SET status = 'attended', attended_at = NOW() WHERE id = $1`
+	query := fmt.Sprintf(`UPDATE bookings SET status = '%s', attended_at = NOW() WHERE id = $1`, domain.BookingStatusAttended)
 	_, err := tx.ExecContext(ctx, query, bookingID)
 	return err
 }

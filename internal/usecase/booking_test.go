@@ -114,7 +114,7 @@ func TestCreateBooking_SessionInPast(t *testing.T) {
 	user := &domain.User{ID: 1, Balance: 1000}
 	session := &domain.Session{
 		ID:             1,
-		Status:         "active",
+		Status:         domain.SessionStatusActive,
 		AvailableSlots: 5,
 		Price:          500,
 		StartTime:      time.Now().Add(-3 * time.Hour),
@@ -133,7 +133,7 @@ func TestCreateBooking_SessionNotActive(t *testing.T) {
 	user := &domain.User{ID: 1, Balance: 1000}
 	session := &domain.Session{
 		ID:             1,
-		Status:         "cancelled",
+		Status:         "cancelled_session", // Use a different string to represent non-active
 		AvailableSlots: 5,
 		Price:          500,
 		EndTime:        time.Now().Add(2 * time.Hour),
@@ -151,7 +151,7 @@ func TestCreateBooking_NoSlots(t *testing.T) {
 	user := &domain.User{ID: 1, Balance: 1000}
 	session := &domain.Session{
 		ID:             1,
-		Status:         "active",
+		Status:         domain.SessionStatusActive,
 		AvailableSlots: 0,
 		Price:          500,
 		EndTime:        time.Now().Add(2 * time.Hour),
@@ -169,7 +169,7 @@ func TestCreateBooking_InsufficientBalance(t *testing.T) {
 	user := &domain.User{ID: 1, Balance: 100}
 	session := &domain.Session{
 		ID:             1,
-		Status:         "active",
+		Status:         domain.SessionStatusActive,
 		AvailableSlots: 5,
 		Price:          500,
 		EndTime:        time.Now().Add(2 * time.Hour),
@@ -187,7 +187,7 @@ func TestCreateBooking_Duplicate(t *testing.T) {
 	user := &domain.User{ID: 1, Balance: 1000}
 	session := &domain.Session{
 		ID:             1,
-		Status:         "active",
+		Status:         domain.SessionStatusActive,
 		AvailableSlots: 5,
 		Price:          500,
 		EndTime:        time.Now().Add(2 * time.Hour),
@@ -208,7 +208,7 @@ func TestCancelBooking_Forbidden(t *testing.T) {
 		ID:        1,
 		UserID:    99,
 		SessionID: 1,
-		Status:    "confirmed",
+		Status:    domain.BookingStatusConfirmed,
 	}
 	session := &domain.Session{ID: 1, Price: 500}
 
@@ -226,7 +226,7 @@ func TestCancelBooking_AlreadyCancelled(t *testing.T) {
 		ID:        1,
 		UserID:    1,
 		SessionID: 1,
-		Status:    "cancelled",
+		Status:    domain.BookingStatusCancelled,
 	}
 	session := &domain.Session{ID: 1, Price: 500}
 
@@ -243,7 +243,7 @@ func TestCancelBooking_AlreadyAttended(t *testing.T) {
 		ID:        1,
 		UserID:    1,
 		SessionID: 1,
-		Status:    "attended",
+		Status:    domain.BookingStatusAttended,
 	}
 	session := &domain.Session{ID: 1, Price: 500}
 
@@ -260,16 +260,16 @@ func TestCancelBooking_AdminCanCancelAnyone(t *testing.T) {
 		if booking.UserID != requesterID && !isAdmin {
 			return ErrBookingForbidden
 		}
-		if booking.Status == "cancelled" {
+		if booking.Status == domain.BookingStatusCancelled {
 			return errors.New("booking already cancelled")
 		}
-		if booking.Status == "attended" {
+		if booking.Status == domain.BookingStatusAttended {
 			return errors.New("attended bookings cannot be cancelled")
 		}
 		return nil
 	}
 
-	booking := &domain.Booking{ID: 1, UserID: 99, SessionID: 1, Status: "confirmed"}
+	booking := &domain.Booking{ID: 1, UserID: 99, SessionID: 1, Status: domain.BookingStatusConfirmed}
 
 	err := checkAccess(booking, 1, false)
 	if !errors.Is(err, ErrBookingForbidden) {
@@ -287,7 +287,7 @@ func TestMarkAttended_SessionNotStarted(t *testing.T) {
 		ID:        1,
 		UserID:    1,
 		SessionID: 1,
-		Status:    "confirmed",
+		Status:    domain.BookingStatusConfirmed,
 	}
 	session := &domain.Session{
 		ID:        1,
@@ -307,7 +307,7 @@ func TestMarkAttended_AlreadyAttended(t *testing.T) {
 		ID:        1,
 		UserID:    1,
 		SessionID: 1,
-		Status:    "attended",
+		Status:    domain.BookingStatusAttended,
 	}
 	session := &domain.Session{
 		ID:        1,
@@ -323,7 +323,7 @@ func TestMarkAttended_AlreadyAttended(t *testing.T) {
 }
 
 func TestMarkAttended_WrongStatus(t *testing.T) {
-	for _, status := range []string{"pending", "cancelled"} {
+	for _, status := range []domain.BookingStatus{domain.BookingStatusPending, domain.BookingStatusCancelled} {
 		booking := &domain.Booking{
 			ID:        1,
 			UserID:    1,
