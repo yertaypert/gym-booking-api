@@ -10,7 +10,7 @@ import (
 	"github.com/yertaypert/gym-booking-api/internal/domain"
 )
 
-// Тест: нельзя записаться на сессию которая уже закончилась
+// Impossible to create booking on past session
 func TestCreateBooking_SessionInPast(t *testing.T) {
 	user := &domain.User{ID: 1, Balance: 1000}
 	session := &domain.Session{
@@ -18,8 +18,8 @@ func TestCreateBooking_SessionInPast(t *testing.T) {
 		Status:         "active",
 		AvailableSlots: 5,
 		Price:          500,
-		StartTime:      time.Now().Add(-3 * time.Hour), // началась 3 часа назад
-		EndTime:        time.Now().Add(-1 * time.Hour), // закончилась час назад
+		StartTime:      time.Now().Add(-3 * time.Hour), 
+		EndTime:        time.Now().Add(-1 * time.Hour),
 	}
 
 	uc, _, _, _ := newTestUsecase(user, session, nil)
@@ -30,12 +30,12 @@ func TestCreateBooking_SessionInPast(t *testing.T) {
 	}
 }
 
-// Тест: нельзя записаться если сессия отменена
+// Impossible to book if session is not active
 func TestCreateBooking_SessionNotActive(t *testing.T) {
 	user := &domain.User{ID: 1, Balance: 1000}
 	session := &domain.Session{
 		ID:             1,
-		Status:         "cancelled", // не active
+		Status:         "cancelled",
 		AvailableSlots: 5,
 		Price:          500,
 		EndTime:        time.Now().Add(2 * time.Hour),
@@ -49,7 +49,7 @@ func TestCreateBooking_SessionNotActive(t *testing.T) {
 	}
 }
 
-// Тест: нельзя записаться если нет мест
+// Impossible to book if no slots
 func TestCreateBooking_NoSlots(t *testing.T) {
 	user := &domain.User{ID: 1, Balance: 1000}
 	session := &domain.Session{
@@ -68,14 +68,14 @@ func TestCreateBooking_NoSlots(t *testing.T) {
 	}
 }
 
-// Тест: нельзя записаться если не хватает денег
+// Impossible to book if not enough balance
 func TestCreateBooking_InsufficientBalance(t *testing.T) {
-	user := &domain.User{ID: 1, Balance: 100} // только 100
+	user := &domain.User{ID: 1, Balance: 100}
 	session := &domain.Session{
 		ID:             1,
 		Status:         "active",
 		AvailableSlots: 5,
-		Price:          500, // а занятие стоит 500
+		Price:          500,
 		EndTime:        time.Now().Add(2 * time.Hour),
 	}
 
@@ -87,7 +87,7 @@ func TestCreateBooking_InsufficientBalance(t *testing.T) {
 	}
 }
 
-// Тест: нельзя записаться дважды на одну сессию
+// Impossible to book one session couple times
 func TestCreateBooking_Duplicate(t *testing.T) {
 	user := &domain.User{ID: 1, Balance: 1000}
 	session := &domain.Session{
@@ -99,7 +99,7 @@ func TestCreateBooking_Duplicate(t *testing.T) {
 	}
 
 	uc, bookingRepo, _, _ := newTestUsecase(user, session, nil)
-	bookingRepo.isDuplicate = true // симулируем что букинг уже существует
+	bookingRepo.isDuplicate = true
 
 	_, err := uc.CreateBooking(context.Background(), 1, 1)
 
@@ -108,11 +108,11 @@ func TestCreateBooking_Duplicate(t *testing.T) {
 	}
 }
 
-// Тест: нельзя отменить чужой букинг
+// Impossible to cancel another booking
 func TestCancelBooking_Forbidden(t *testing.T) {
 	booking := &domain.Booking{
 		ID:        1,
-		UserID:    99, // букинг принадлежит юзеру 99
+		UserID:    99, // booking for user 99
 		SessionID: 1,
 		Status:    "confirmed",
 	}
@@ -120,7 +120,7 @@ func TestCancelBooking_Forbidden(t *testing.T) {
 
 	uc, _, _, _ := newTestUsecase(nil, session, booking)
 
-	// Запрашиваем отмену от имени юзера 1 (не 99), не админ
+	// Ask for cancelation from user 1
 	err := uc.CancelBooking(context.Background(), 1, 1, false)
 
 	if !errors.Is(err, ErrBookingForbidden) {
@@ -128,13 +128,13 @@ func TestCancelBooking_Forbidden(t *testing.T) {
 	}
 }
 
-// Тест: нельзя отменить уже отменённый букинг
+// Impossible to cancel canceled booking
 func TestCancelBooking_AlreadyCancelled(t *testing.T) {
 	booking := &domain.Booking{
 		ID:        1,
 		UserID:    1,
 		SessionID: 1,
-		Status:    "cancelled", // уже отменён
+		Status:    "cancelled",
 	}
 	session := &domain.Session{ID: 1, Price: 500}
 
@@ -146,13 +146,13 @@ func TestCancelBooking_AlreadyCancelled(t *testing.T) {
 	}
 }
 
-// Тест: нельзя отменить уже посещённый букинг
+// Impossible to cancel attended booking
 func TestCancelBooking_AlreadyAttended(t *testing.T) {
 	booking := &domain.Booking{
 		ID:        1,
 		UserID:    1,
 		SessionID: 1,
-		Status:    "attended", // уже посетил
+		Status:    "attended",
 	}
 	session := &domain.Session{ID: 1, Price: 500}
 
@@ -164,11 +164,8 @@ func TestCancelBooking_AlreadyAttended(t *testing.T) {
 	}
 }
 
-// Тест: админ может отменить чужой букинг.
-// Проверяем только логику прав доступа изолированно.
+// Admin can calcel any booking
 func TestCancelBooking_AdminCanCancelAnyone(t *testing.T) {
-	// Эта вспомогательная функция воспроизводит только ту часть CancelBooking,
-	// которая проверяет права — без BeginTx, без db.
 	checkAccess := func(booking *domain.Booking, requesterID int, isAdmin bool) error {
 		if booking.UserID != requesterID && !isAdmin {
 			return ErrBookingForbidden
@@ -184,22 +181,20 @@ func TestCancelBooking_AdminCanCancelAnyone(t *testing.T) {
 
 	booking := &domain.Booking{ID: 1, UserID: 99, SessionID: 1, Status: "confirmed"}
 
-	// Обычный юзер (ID=1) НЕ может отменить букинг юзера 99
 	err := checkAccess(booking, 1, false)
 	if !errors.Is(err, ErrBookingForbidden) {
 		t.Errorf("обычный юзер должен получить ErrBookingForbidden, получили: %v", err)
 	}
 
-	// Админ МОЖЕТ отменить чужой букинг
 	err = checkAccess(booking, 1, true)
 	if err != nil {
 		t.Errorf("админ не должен получать ошибку, получили: %v", err)
 	}
 }
 
-// ─── Тесты MarkAttended ──────────────────────────────────────────────────────
+// Тесты MarkAttended
 
-// Тест: нельзя отметить посещение до начала занятия
+// Impossible to mark attendance before session started
 func TestMarkAttended_SessionNotStarted(t *testing.T) {
 	booking := &domain.Booking{
 		ID:        1,
@@ -209,7 +204,7 @@ func TestMarkAttended_SessionNotStarted(t *testing.T) {
 	}
 	session := &domain.Session{
 		ID:        1,
-		StartTime: time.Now().Add(2 * time.Hour), // занятие ещё не началось
+		StartTime: time.Now().Add(2 * time.Hour),
 	}
 
 	uc, _, _, _ := newTestUsecase(nil, session, booking)
@@ -220,13 +215,13 @@ func TestMarkAttended_SessionNotStarted(t *testing.T) {
 	}
 }
 
-// Тест: нельзя отметить посещение дважды
+// Impossible to mark attendance for attended booking
 func TestMarkAttended_AlreadyAttended(t *testing.T) {
 	booking := &domain.Booking{
 		ID:        1,
 		UserID:    1,
 		SessionID: 1,
-		Status:    "attended", // уже отмечен
+		Status:    "attended",
 	}
 	session := &domain.Session{
 		ID:        1,
@@ -241,7 +236,7 @@ func TestMarkAttended_AlreadyAttended(t *testing.T) {
 	}
 }
 
-// Тест: нельзя отметить посещение для pending/cancelled букинга
+// Impossible to mark attendance for pending/cancelled booking
 func TestMarkAttended_WrongStatus(t *testing.T) {
 	for _, status := range []string{"pending", "cancelled"} {
 		booking := &domain.Booking{
@@ -264,11 +259,10 @@ func TestMarkAttended_WrongStatus(t *testing.T) {
 	}
 }
 
-// ─── ListGymBookings ──────────────────────────────────────────────────────────
+// ListGymBookings 
 
 func TestListGymBookings_GymNotFound(t *testing.T) {
 	_, _, _, _ = newTestUsecase(nil, nil, nil)
-	// gymRepo не установлен в newTestUsecase — нужен отдельный хелпер
 	ucWithGym := &BookingUsecase{
 		db:          nil,
 		bookingRepo: &mockBookingRepo{},
@@ -285,7 +279,6 @@ func TestListGymBookings_GymNotFound(t *testing.T) {
 }
 
 func TestListGymBookings_NotOwnerAndNotAdmin(t *testing.T) {
-	// gym принадлежит ownerID=99, запрос от userID=1 с ролью GymOwner
 	ucWithGym := &BookingUsecase{
 		db:          nil,
 		bookingRepo: &mockBookingRepo{},
@@ -302,7 +295,6 @@ func TestListGymBookings_NotOwnerAndNotAdmin(t *testing.T) {
 }
 
 func TestListGymBookings_AdminCanSeeAnyGym(t *testing.T) {
-	// gym принадлежит ownerID=99, но запрос от admin — должно пройти
 	ucWithGym := &BookingUsecase{
 		db:          nil,
 		bookingRepo: &mockBookingRepo{},
@@ -337,7 +329,7 @@ func TestListGymBookings_OwnerCanSeeOwnGym(t *testing.T) {
 	}
 }
 
-// ─── GetSessionAttendees ──────────────────────────────────────────────────────
+// GetSessionAttendees
 
 func TestGetSessionAttendees_SessionNotFound(t *testing.T) {
 	uc, _, _, _ := newTestUsecase(nil, nil, nil)
@@ -363,7 +355,7 @@ func TestGetSessionAttendees_Success(t *testing.T) {
 	}
 }
 
-// ─── GetMyBookings / GetUserBookings ──────────────────────────────────────────
+// GetMyBookings / GetUserBookings 
 
 func TestGetMyBookings_Success(t *testing.T) {
 	uc, _, _, _ := newTestUsecase(nil, nil, nil)
