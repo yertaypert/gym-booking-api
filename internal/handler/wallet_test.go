@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// TopUp нет UserID в контексте - 401
+// No userID in TopUp in context - 401
 func TestTopUp_NoUserContext(t *testing.T) {
 	h := &WalletHandler{walletUsecase: nil}
 
@@ -21,7 +21,7 @@ func TestTopUp_NoUserContext(t *testing.T) {
 	}
 }
 
-// TopUp невалидный JSON - 400
+// TopUp invalid JSON - 400
 func TestTopUp_InvalidJSON(t *testing.T) {
 	h := &WalletHandler{walletUsecase: nil}
 
