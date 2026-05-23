@@ -4,9 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"os"
 	"time"
 
+	"github.com/yertaypert/gym-booking-api/internal/auth"
 	"github.com/yertaypert/gym-booking-api/internal/domain"
+	"github.com/yertaypert/gym-booking-api/internal/repository"
 )
 
 var (
@@ -17,7 +20,11 @@ var (
 	ErrAlreadyAttended      = errors.New("attendance already marked for this booking")
 	ErrSessionNotStartedYet = errors.New("session has not started yet — cannot mark attendance")
 	ErrBookingNotConfirmed  = errors.New("only confirmed bookings can be marked as attended")
+	ErrSessionForbidden     = errors.New("session does not belong to gym owner")
+	ErrInvalidAttendanceQR  = errors.New("invalid or expired attendance QR")
 )
+
+const attendanceQRTTL = 15 * time.Minute
 
 type BookingUsecase struct {
 	db          *sql.DB
@@ -50,7 +57,7 @@ func NewBookingUsecase(
 // the transaction — all inside a single DB transaction.
 
 func (u *BookingUsecase) ListGymBookings(ctx context.Context, userID int, userRole domain.UserRole, gymID int) ([]domain.Booking, error) {
-	gym, err := u.gymRepo.GetGymByID(gymID)
+	gym, err := u.gymRepo.GetGymByID(ctx, gymID)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +70,7 @@ func (u *BookingUsecase) ListGymBookings(ctx context.Context, userID int, userRo
 }
 
 func (u *BookingUsecase) CreateBooking(ctx context.Context, userID, sessionID int) (int, error) {
-	user, err := u.userRepo.GetByID(userID)
+	user, err := u.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return 0, err
 	}
@@ -104,12 +111,15 @@ func (u *BookingUsecase) CreateBooking(ctx context.Context, userID, sessionID in
 	}
 	defer tx.Rollback()
 
-	bookingID, err := u.bookingRepo.Create(tx, userID, sessionID)
+	bookingID, err := u.bookingRepo.Create(ctx, tx, userID, sessionID)
 	if err != nil {
+		if errors.Is(err, repository.ErrAlreadyExists) {
+			return 0, errors.New("you are already booked for this session")
+		}
 		return 0, err
 	}
 
-	if err = u.walletRepo.UpdateBalance(tx, userID, -session.Price); err != nil {
+	if err = u.walletRepo.UpdateBalance(ctx, tx, userID, -session.Price); err != nil {
 		return 0, err
 	}
 
@@ -117,11 +127,11 @@ func (u *BookingUsecase) CreateBooking(ctx context.Context, userID, sessionID in
 		return 0, err
 	}
 
-	if err = u.bookingRepo.UpdateStatus(ctx, tx, bookingID, "confirmed"); err != nil {
+	if err = u.bookingRepo.UpdateStatus(ctx, tx, bookingID, string(domain.BookingStatusConfirmed)); err != nil {
 		return 0, err
 	}
 
-	if err = u.walletRepo.CreateTransaction(tx, userID, &bookingID, -session.Price, string(domain.TransactionTypePayment)); err != nil {
+	if err = u.walletRepo.CreateTransaction(ctx, tx, userID, &bookingID, -session.Price, string(domain.TransactionTypePayment)); err != nil {
 		return 0, err
 	}
 
@@ -136,7 +146,7 @@ func (u *BookingUsecase) CreateBooking(ctx context.Context, userID, sessionID in
 func (u *BookingUsecase) CancelBooking(ctx context.Context, requesterID, bookingID int, isAdmin bool) error {
 	booking, err := u.bookingRepo.GetByID(ctx, bookingID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, repository.ErrNotFound) {
 			return ErrBookingNotFound
 		}
 		return err
@@ -162,15 +172,15 @@ func (u *BookingUsecase) CancelBooking(ctx context.Context, requesterID, booking
 	}
 	defer tx.Rollback()
 
-	if err = u.bookingRepo.UpdateStatus(ctx, tx, bookingID, "cancelled"); err != nil {
+	if err = u.bookingRepo.UpdateStatus(ctx, tx, bookingID, string(domain.BookingStatusCancelled)); err != nil {
 		return err
 	}
 
-	if err = u.walletRepo.UpdateBalance(tx, booking.UserID, session.Price); err != nil {
+	if err = u.walletRepo.UpdateBalance(ctx, tx, booking.UserID, session.Price); err != nil {
 		return err
 	}
 
-	if err = u.walletRepo.CreateTransaction(tx, booking.UserID, &bookingID, session.Price, string(domain.TransactionTypeRefund)); err != nil {
+	if err = u.walletRepo.CreateTransaction(ctx, tx, booking.UserID, &bookingID, session.Price, string(domain.TransactionTypeRefund)); err != nil {
 		return err
 	}
 
@@ -192,16 +202,109 @@ func (u *BookingUsecase) GetUserBookings(ctx context.Context, userID int) ([]dom
 func (u *BookingUsecase) MarkAttended(ctx context.Context, bookingID int) error {
 	booking, err := u.bookingRepo.GetByID(ctx, bookingID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, repository.ErrNotFound) {
 			return ErrBookingNotFound
 		}
 		return err
 	}
 
-	if booking.Status == "attended" {
+	if booking.Status == domain.BookingStatusAttended {
 		return ErrAlreadyAttended
 	}
-	if booking.Status != "confirmed" {
+	return u.markBookingAttended(ctx, booking)
+}
+
+// GetMyBookings returns all bookings (with session detail) for the calling user.
+func (u *BookingUsecase) GetMyBookings(ctx context.Context, userID int) ([]domain.BookingDetail, error) {
+	return u.bookingRepo.GetDetailsByUserID(ctx, userID)
+}
+
+// GetSessionAttendees returns all bookings for a session.  Intended for admin/trainer use.
+func (u *BookingUsecase) GetSessionAttendees(ctx context.Context, requesterID int, role domain.UserRole, sessionID int) ([]domain.BookingDetail, error) {
+	if err := u.ensureSessionAttendanceAccess(ctx, requesterID, role, sessionID); err != nil {
+		return nil, err
+	}
+
+	return u.bookingRepo.GetBySessionID(ctx, sessionID)
+}
+
+func (u *BookingUsecase) GenerateAttendanceQR(ctx context.Context, requesterID int, role domain.UserRole, sessionID int) (string, time.Time, error) {
+	if err := u.ensureSessionAttendanceAccess(ctx, requesterID, role, sessionID); err != nil {
+		return "", time.Time{}, err
+	}
+
+	return auth.GenerateAttendanceQRToken(sessionID, attendanceQRTTL)
+}
+
+func (u *BookingUsecase) ScanAttendanceQR(ctx context.Context, userID int, token string) (*domain.AttendanceScanResult, error) {
+	claims, err := auth.ParseAttendanceQRToken(token)
+	if err != nil {
+		return nil, ErrInvalidAttendanceQR
+	}
+
+	booking, err := u.bookingRepo.GetByUserAndSession(ctx, userID, claims.SessionID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, ErrBookingNotFound
+		}
+		return nil, err
+	}
+
+	if booking.Status == domain.BookingStatusAttended {
+		return &domain.AttendanceScanResult{
+			BookingID:       booking.ID,
+			SessionID:       booking.SessionID,
+			Status:          string(domain.BookingStatusAttended),
+			AttendedAt:      booking.AttendedAt,
+			AlreadyAttended: true,
+		}, nil
+	}
+
+	if err := u.markBookingAttended(ctx, booking); err != nil {
+		return nil, err
+	}
+
+	updatedBooking, err := u.bookingRepo.GetByID(ctx, booking.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &domain.AttendanceScanResult{
+		BookingID:       updatedBooking.ID,
+		SessionID:       updatedBooking.SessionID,
+		Status:          string(updatedBooking.Status),
+		AttendedAt:      updatedBooking.AttendedAt,
+		AlreadyAttended: false,
+	}, nil
+}
+
+func (u *BookingUsecase) ensureSessionAttendanceAccess(ctx context.Context, requesterID int, role domain.UserRole, sessionID int) error {
+	if role == domain.RoleAdmin {
+		if _, err := u.sessionRepo.GetByID(ctx, sessionID); err != nil {
+			if errors.Is(err, repository.ErrNotFound) {
+				return errors.New("session not found")
+			}
+			return err
+		}
+		return nil
+	}
+
+	ownerID, err := u.sessionRepo.GetGymOwnerIDBySessionID(ctx, sessionID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return errors.New("session not found")
+		}
+		return err
+	}
+	if ownerID != requesterID {
+		return ErrSessionForbidden
+	}
+
+	return nil
+}
+
+func (u *BookingUsecase) markBookingAttended(ctx context.Context, booking *domain.Booking) error {
+	if booking.Status != domain.BookingStatusConfirmed {
 		return ErrBookingNotConfirmed
 	}
 
@@ -209,7 +312,9 @@ func (u *BookingUsecase) MarkAttended(ctx context.Context, bookingID int) error 
 	if err != nil {
 		return err
 	}
-	if time.Now().Before(session.StartTime) {
+
+	bypassCheck := os.Getenv("BYPASS_ATTENDANCE_TIME_CHECK") == "true"
+	if !bypassCheck && time.Now().Before(session.StartTime) {
 		return ErrSessionNotStartedYet
 	}
 
@@ -219,26 +324,9 @@ func (u *BookingUsecase) MarkAttended(ctx context.Context, bookingID int) error 
 	}
 	defer tx.Rollback()
 
-	if err = u.bookingRepo.MarkAttended(ctx, tx, bookingID); err != nil {
+	if err = u.bookingRepo.MarkAttended(ctx, tx, booking.ID); err != nil {
 		return err
 	}
 
 	return tx.Commit()
-}
-
-// GetMyBookings returns all bookings (with session detail) for the calling user.
-func (u *BookingUsecase) GetMyBookings(ctx context.Context, userID int) ([]domain.BookingDetail, error) {
-	return u.bookingRepo.GetDetailsByUserID(ctx, userID)
-}
-
-// GetSessionAttendees returns all bookings for a session.  Intended for admin/trainer use.
-func (u *BookingUsecase) GetSessionAttendees(ctx context.Context, sessionID int) ([]domain.BookingDetail, error) {
-	// Verify session exists first.
-	if _, err := u.sessionRepo.GetByID(ctx, sessionID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, errors.New("session not found")
-		}
-		return nil, err
-	}
-	return u.bookingRepo.GetBySessionID(ctx, sessionID)
 }

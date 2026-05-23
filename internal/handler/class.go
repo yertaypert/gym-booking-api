@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"net/http"
 	"time"
 
@@ -19,24 +18,22 @@ func NewClassHandler(u *usecase.ClassUsecase) *ClassHandler {
 func (h *ClassHandler) ListClasses(w http.ResponseWriter, r *http.Request) {
 	classes, err := h.usecase.ListDistinctClasses(r.Context())
 	if err != nil {
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		writeError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(classes)
+	writeJSON(w, http.StatusOK, classes)
 }
 
 func (h *ClassHandler) ListGymsByClass(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
 	gyms, err := h.usecase.ListGymsByClassName(r.Context(), name)
 	if err != nil {
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		writeError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(gyms)
+	writeJSON(w, http.StatusOK, gyms)
 }
 
 func (h *ClassHandler) SearchSessions(w http.ResponseWriter, r *http.Request) {
@@ -47,7 +44,7 @@ func (h *ClassHandler) SearchSessions(w http.ResponseWriter, r *http.Request) {
 	if st := r.URL.Query().Get("start_time"); st != "" {
 		t, err := time.Parse(time.RFC3339, st)
 		if err != nil {
-			http.Error(w, "invalid start_time format (RFC3339 required)", http.StatusBadRequest)
+			writeError(w, "invalid start_time format (RFC3339 required)", http.StatusBadRequest)
 			return
 		}
 		startTime = &t
@@ -56,7 +53,7 @@ func (h *ClassHandler) SearchSessions(w http.ResponseWriter, r *http.Request) {
 	if et := r.URL.Query().Get("end_time"); et != "" {
 		t, err := time.Parse(time.RFC3339, et)
 		if err != nil {
-			http.Error(w, "invalid end_time format (RFC3339 required)", http.StatusBadRequest)
+			writeError(w, "invalid end_time format (RFC3339 required)", http.StatusBadRequest)
 			return
 		}
 		endTime = &t
@@ -65,7 +62,7 @@ func (h *ClassHandler) SearchSessions(w http.ResponseWriter, r *http.Request) {
 	if dateStr := r.URL.Query().Get("date"); dateStr != "" {
 		d, err := time.Parse("2006-01-02", dateStr)
 		if err != nil {
-			http.Error(w, "invalid date format (YYYY-MM-DD required)", http.StatusBadRequest)
+			writeError(w, "invalid date format (YYYY-MM-DD required)", http.StatusBadRequest)
 			return
 		}
 
@@ -77,27 +74,25 @@ func (h *ClassHandler) SearchSessions(w http.ResponseWriter, r *http.Request) {
 
 	sessions, err := h.usecase.SearchSessions(r.Context(), name, startTime, endTime)
 	if err != nil {
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		writeError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(sessions)
+	writeJSON(w, http.StatusOK, sessions)
 }
 
 func (h *ClassHandler) GetSession(w http.ResponseWriter, r *http.Request) {
 	sessionID, err := parsePathID(r, "id")
 	if err != nil {
-		http.Error(w, "invalid session id", http.StatusBadRequest)
+		writeError(w, "invalid session id", http.StatusBadRequest)
 		return
 	}
 
 	session, err := h.usecase.GetSession(r.Context(), sessionID)
 	if err != nil {
-		http.Error(w, "session not found", http.StatusNotFound)
+		writeError(w, "session not found", http.StatusNotFound)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(session)
+	writeJSON(w, http.StatusOK, session)
 }

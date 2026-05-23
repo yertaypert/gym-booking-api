@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/yertaypert/gym-booking-api/internal/auth"
 	"github.com/yertaypert/gym-booking-api/internal/domain"
 )
 
@@ -15,19 +16,27 @@ type mockUserRepo struct {
 	err  error
 }
 
-func (m *mockUserRepo) GetByID(id int) (*domain.User, error)          { return m.user, m.err }
-func (m *mockUserRepo) Create(user domain.User) (int, error)          { return 1, nil }
-func (m *mockUserRepo) GetByEmail(email string) (*domain.User, error) { return m.user, m.err }
+func (m *mockUserRepo) GetByID(ctx context.Context, id int) (*domain.User, error) {
+	return m.user, m.err
+}
+func (m *mockUserRepo) Create(ctx context.Context, user domain.User) (int, error) { return 1, nil }
+func (m *mockUserRepo) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
+	return m.user, m.err
+}
 
 type mockSessionRepo struct {
 	session        *domain.Session
 	err            error
+	ownerID        int
 	decreaseCalled bool
 	increaseCalled bool
 }
 
 func (m *mockSessionRepo) GetByID(ctx context.Context, id int) (*domain.Session, error) {
 	return m.session, m.err
+}
+func (m *mockSessionRepo) GetGymOwnerIDBySessionID(ctx context.Context, sessionID int) (int, error) {
+	return m.ownerID, m.err
 }
 func (m *mockSessionRepo) DecreaseAvailableSlots(ctx context.Context, tx *sql.Tx, sessionID int) error {
 	m.decreaseCalled = true
@@ -48,11 +57,10 @@ type mockBookingRepo struct {
 }
 
 func (m *mockBookingRepo) ListByGymID(ctx context.Context, gymID int) ([]domain.Booking, error) {
-	//TODO implement me
-	panic("implement me")
+	return []domain.Booking{}, nil
 }
 
-func (m *mockBookingRepo) Create(tx *sql.Tx, userID, sessionID int) (int, error) {
+func (m *mockBookingRepo) Create(ctx context.Context, tx *sql.Tx, userID, sessionID int) (int, error) {
 	return 1, m.createErr
 }
 func (m *mockBookingRepo) UpdateStatus(ctx context.Context, tx *sql.Tx, bookingID int, status string) error {
@@ -60,6 +68,9 @@ func (m *mockBookingRepo) UpdateStatus(ctx context.Context, tx *sql.Tx, bookingI
 	return nil
 }
 func (m *mockBookingRepo) GetByID(ctx context.Context, bookingID int) (*domain.Booking, error) {
+	return m.booking, m.err
+}
+func (m *mockBookingRepo) GetByUserAndSession(ctx context.Context, userID, sessionID int) (*domain.Booking, error) {
 	return m.booking, m.err
 }
 func (m *mockBookingRepo) ExistsByUserAndSession(ctx context.Context, userID, sessionID int) (bool, error) {
@@ -83,11 +94,11 @@ type mockWalletRepo struct {
 	lastAmount float64
 }
 
-func (m *mockWalletRepo) UpdateBalance(tx *sql.Tx, userID int, amount float64) error {
+func (m *mockWalletRepo) UpdateBalance(ctx context.Context, tx *sql.Tx, userID int, amount float64) error {
 	m.lastAmount = amount
 	return nil
 }
-func (m *mockWalletRepo) CreateTransaction(tx *sql.Tx, userID int, bookingID *int, amount float64, txType string) error {
+func (m *mockWalletRepo) CreateTransaction(ctx context.Context, tx *sql.Tx, userID int, bookingID *int, amount float64, txType string) error {
 	return nil
 }
 
@@ -115,7 +126,7 @@ func TestCreateBooking_SessionInPast(t *testing.T) {
 	user := &domain.User{ID: 1, Balance: 1000}
 	session := &domain.Session{
 		ID:             1,
-		Status:         "active",
+		Status:         domain.SessionStatusActive,
 		AvailableSlots: 5,
 		Price:          500,
 		StartTime:      time.Now().Add(-3 * time.Hour),
@@ -134,7 +145,7 @@ func TestCreateBooking_SessionNotActive(t *testing.T) {
 	user := &domain.User{ID: 1, Balance: 1000}
 	session := &domain.Session{
 		ID:             1,
-		Status:         "cancelled",
+		Status:         "cancelled_session", // Use a different string to represent non-active
 		AvailableSlots: 5,
 		Price:          500,
 		EndTime:        time.Now().Add(2 * time.Hour),
@@ -152,7 +163,7 @@ func TestCreateBooking_NoSlots(t *testing.T) {
 	user := &domain.User{ID: 1, Balance: 1000}
 	session := &domain.Session{
 		ID:             1,
-		Status:         "active",
+		Status:         domain.SessionStatusActive,
 		AvailableSlots: 0,
 		Price:          500,
 		EndTime:        time.Now().Add(2 * time.Hour),
@@ -170,7 +181,7 @@ func TestCreateBooking_InsufficientBalance(t *testing.T) {
 	user := &domain.User{ID: 1, Balance: 100}
 	session := &domain.Session{
 		ID:             1,
-		Status:         "active",
+		Status:         domain.SessionStatusActive,
 		AvailableSlots: 5,
 		Price:          500,
 		EndTime:        time.Now().Add(2 * time.Hour),
@@ -188,7 +199,7 @@ func TestCreateBooking_Duplicate(t *testing.T) {
 	user := &domain.User{ID: 1, Balance: 1000}
 	session := &domain.Session{
 		ID:             1,
-		Status:         "active",
+		Status:         domain.SessionStatusActive,
 		AvailableSlots: 5,
 		Price:          500,
 		EndTime:        time.Now().Add(2 * time.Hour),
@@ -209,7 +220,7 @@ func TestCancelBooking_Forbidden(t *testing.T) {
 		ID:        1,
 		UserID:    99,
 		SessionID: 1,
-		Status:    "confirmed",
+		Status:    domain.BookingStatusConfirmed,
 	}
 	session := &domain.Session{ID: 1, Price: 500}
 
@@ -227,7 +238,7 @@ func TestCancelBooking_AlreadyCancelled(t *testing.T) {
 		ID:        1,
 		UserID:    1,
 		SessionID: 1,
-		Status:    "cancelled",
+		Status:    domain.BookingStatusCancelled,
 	}
 	session := &domain.Session{ID: 1, Price: 500}
 
@@ -244,7 +255,7 @@ func TestCancelBooking_AlreadyAttended(t *testing.T) {
 		ID:        1,
 		UserID:    1,
 		SessionID: 1,
-		Status:    "attended",
+		Status:    domain.BookingStatusAttended,
 	}
 	session := &domain.Session{ID: 1, Price: 500}
 
@@ -261,16 +272,16 @@ func TestCancelBooking_AdminCanCancelAnyone(t *testing.T) {
 		if booking.UserID != requesterID && !isAdmin {
 			return ErrBookingForbidden
 		}
-		if booking.Status == "cancelled" {
+		if booking.Status == domain.BookingStatusCancelled {
 			return errors.New("booking already cancelled")
 		}
-		if booking.Status == "attended" {
+		if booking.Status == domain.BookingStatusAttended {
 			return errors.New("attended bookings cannot be cancelled")
 		}
 		return nil
 	}
 
-	booking := &domain.Booking{ID: 1, UserID: 99, SessionID: 1, Status: "confirmed"}
+	booking := &domain.Booking{ID: 1, UserID: 99, SessionID: 1, Status: domain.BookingStatusConfirmed}
 
 	err := checkAccess(booking, 1, false)
 	if !errors.Is(err, ErrBookingForbidden) {
@@ -288,7 +299,7 @@ func TestMarkAttended_SessionNotStarted(t *testing.T) {
 		ID:        1,
 		UserID:    1,
 		SessionID: 1,
-		Status:    "confirmed",
+		Status:    domain.BookingStatusConfirmed,
 	}
 	session := &domain.Session{
 		ID:        1,
@@ -308,7 +319,7 @@ func TestMarkAttended_AlreadyAttended(t *testing.T) {
 		ID:        1,
 		UserID:    1,
 		SessionID: 1,
-		Status:    "attended",
+		Status:    domain.BookingStatusAttended,
 	}
 	session := &domain.Session{
 		ID:        1,
@@ -324,7 +335,7 @@ func TestMarkAttended_AlreadyAttended(t *testing.T) {
 }
 
 func TestMarkAttended_WrongStatus(t *testing.T) {
-	for _, status := range []string{"pending", "cancelled"} {
+	for _, status := range []domain.BookingStatus{domain.BookingStatusPending, domain.BookingStatusCancelled} {
 		booking := &domain.Booking{
 			ID:        1,
 			UserID:    1,
@@ -342,5 +353,72 @@ func TestMarkAttended_WrongStatus(t *testing.T) {
 		if !errors.Is(err, ErrBookingNotConfirmed) {
 			t.Errorf("status %s: expected ErrBookingNotConfirmed, got: %v", status, err)
 		}
+	}
+}
+
+func TestGenerateAttendanceQR_ForbiddenForOtherOwner(t *testing.T) {
+	uc, _, sessionRepo, _ := newTestUsecase(nil, nil, nil)
+	sessionRepo.ownerID = 99
+
+	_, _, err := uc.GenerateAttendanceQR(context.Background(), 1, domain.RoleGymOwner, 10)
+
+	if !errors.Is(err, ErrSessionForbidden) {
+		t.Fatalf("expected ErrSessionForbidden, got: %v", err)
+	}
+}
+
+func TestGenerateAttendanceQR_AdminAllowed(t *testing.T) {
+	session := &domain.Session{ID: 10}
+	uc, _, _, _ := newTestUsecase(nil, session, nil)
+	auth.SetJWTSecret("test-secret")
+
+	token, expiresAt, err := uc.GenerateAttendanceQR(context.Background(), 1, domain.RoleAdmin, 10)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if token == "" {
+		t.Fatal("expected token to be generated")
+	}
+	if expiresAt.Before(time.Now()) {
+		t.Fatal("expected future expiry")
+	}
+}
+
+func TestScanAttendanceQR_InvalidToken(t *testing.T) {
+	uc, _, _, _ := newTestUsecase(nil, nil, nil)
+
+	_, err := uc.ScanAttendanceQR(context.Background(), 1, "not-a-token")
+
+	if !errors.Is(err, ErrInvalidAttendanceQR) {
+		t.Fatalf("expected ErrInvalidAttendanceQR, got: %v", err)
+	}
+}
+
+func TestScanAttendanceQR_AlreadyAttended(t *testing.T) {
+	auth.SetJWTSecret("test-secret")
+	token, _, err := auth.GenerateAttendanceQRToken(1, time.Minute)
+	if err != nil {
+		t.Fatalf("failed to generate token: %v", err)
+	}
+
+	now := time.Now()
+	booking := &domain.Booking{
+		ID:         7,
+		UserID:     1,
+		SessionID:  1,
+		Status:     domain.BookingStatusAttended,
+		AttendedAt: &now,
+	}
+
+	uc, _, _, _ := newTestUsecase(nil, nil, booking)
+	result, err := uc.ScanAttendanceQR(context.Background(), 1, token)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if !result.AlreadyAttended {
+		t.Fatal("expected already attended result")
+	}
+	if result.Status != string(domain.BookingStatusAttended) {
+		t.Fatalf("expected attended status, got: %s", result.Status)
 	}
 }

@@ -451,3 +451,44 @@ paths:
                         gym_name: { type: string }
                         gym_address: { type: string }
                         class_name: { type: string }
+
+  /attendance-qr:
+    post:
+      summary: Gym generates a QR code for attendance
+      tags: [Attendance]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [session_id]
+              properties:
+                session_id: { type: integer }
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  qr_code: { type: string }
+
+  /attendance/scan:
+    post:
+      summary: User scans a QR code to mark attendance
+      tags: [Attendance]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string }
+      responses:
+        200: { description: Attendance marked }
+        400: { description: Invalid token }

@@ -18,7 +18,7 @@ func NewTransactionHandler(u *usecase.TransactionUsecase) *TransactionHandler {
 
 func (h *TransactionHandler) CreateTransaction(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -29,23 +29,20 @@ func (h *TransactionHandler) CreateTransaction(w http.ResponseWriter, r *http.Re
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid data format", http.StatusBadRequest)
+		writeError(w, "invalid data format", http.StatusBadRequest)
 		return
 	}
 
-	tx, err := h.usecase.CreateTransaction(req.UserID, req.Amount, req.Type)
+	tx, err := h.usecase.CreateTransaction(r.Context(), req.UserID, req.Amount, req.Type)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		writeError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(tx)
+	writeJSON(w, http.StatusOK, tx)
 }
 
 func (h *TransactionHandler) GetMyTransactions(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
 	userIDVal := r.Context().Value("userID")
 	if userIDVal == nil {
 		userIDVal = r.Context().Value("user_id")
@@ -53,15 +50,13 @@ func (h *TransactionHandler) GetMyTransactions(w http.ResponseWriter, r *http.Re
 
 	userID, ok := userIDVal.(int)
 	if !ok {
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"error": "unauthorized"}`))
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 		return
 	}
 
-	transactions, err := h.usecase.GetUserTransactions(userID)
+	transactions, err := h.usecase.GetUserTransactions(r.Context(), userID)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(`{"error": "` + err.Error() + `"}`))
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
 
@@ -69,5 +64,5 @@ func (h *TransactionHandler) GetMyTransactions(w http.ResponseWriter, r *http.Re
 		transactions = []domain.Transaction{}
 	}
 
-	json.NewEncoder(w).Encode(transactions)
+	writeJSON(w, http.StatusOK, transactions)
 }

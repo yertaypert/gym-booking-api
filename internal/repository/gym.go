@@ -1,11 +1,12 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"time"
 
-	"github.com/lib/pq"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/yertaypert/gym-booking-api/internal/domain"
 )
 
@@ -31,8 +32,8 @@ type Session struct {
 	Price          float64
 }
 
-func (r *GymRepository) ListGyms() ([]domain.Gym, error) {
-	rows, err := r.db.Query(`SELECT id, owner_id, name, address, description FROM gyms ORDER BY id`)
+func (r *GymRepository) ListGyms(ctx context.Context) ([]domain.Gym, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT id, owner_id, name, address, description FROM gyms ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}
@@ -54,10 +55,11 @@ func (r *GymRepository) ListGyms() ([]domain.Gym, error) {
 	return gyms, rows.Err()
 }
 
-func (r *GymRepository) CreateGym(gym domain.Gym) (*domain.Gym, error) {
+func (r *GymRepository) CreateGym(ctx context.Context, gym domain.Gym) (*domain.Gym, error) {
 	created := &domain.Gym{}
 	var ownerID sql.NullInt64
-	err := r.db.QueryRow(
+	err := r.db.QueryRowContext(
+		ctx,
 		`INSERT INTO gyms (owner_id, name, address, description) VALUES ($1, $2, $3, $4) RETURNING id, owner_id, name, address, description`,
 		gym.OwnerID,
 		gym.Name,
@@ -65,7 +67,7 @@ func (r *GymRepository) CreateGym(gym domain.Gym) (*domain.Gym, error) {
 		gym.Description,
 	).Scan(&created.ID, &ownerID, &created.Name, &created.Address, &created.Description)
 	if err != nil {
-		if pgErr, ok := err.(*pq.Error); ok {
+		if pgErr, ok := err.(*pgconn.PgError); ok {
 			if pgErr.Code == "23505" {
 				return nil, ErrGymAlreadyExists
 			}
@@ -79,11 +81,12 @@ func (r *GymRepository) CreateGym(gym domain.Gym) (*domain.Gym, error) {
 	return created, nil
 }
 
-func (r *GymRepository) GetGymByID(id int) (*domain.Gym, error) {
+func (r *GymRepository) GetGymByID(ctx context.Context, id int) (*domain.Gym, error) {
 	var gym domain.Gym
 	var ownerID sql.NullInt64
 
-	err := r.db.QueryRow(
+	err := r.db.QueryRowContext(
+		ctx,
 		`SELECT id, owner_id, name, address, description FROM gyms WHERE id = $1`,
 		id,
 	).Scan(&gym.ID, &ownerID, &gym.Name, &gym.Address, &gym.Description)
@@ -100,8 +103,8 @@ func (r *GymRepository) GetGymByID(id int) (*domain.Gym, error) {
 	return &gym, nil
 }
 
-func (r *GymRepository) ListGymsByOwnerID(ownerID int) ([]domain.Gym, error) {
-	rows, err := r.db.Query(`SELECT id, owner_id, name, address, description FROM gyms WHERE owner_id = $1 ORDER BY id`, ownerID)
+func (r *GymRepository) ListGymsByOwnerID(ctx context.Context, ownerID int) ([]domain.Gym, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT id, owner_id, name, address, description FROM gyms WHERE owner_id = $1 ORDER BY id`, ownerID)
 	if err != nil {
 		return nil, err
 	}
@@ -123,12 +126,13 @@ func (r *GymRepository) ListGymsByOwnerID(ownerID int) ([]domain.Gym, error) {
 	return gyms, rows.Err()
 }
 
-func (r *GymRepository) ListClassesByGymID(gymID int) ([]domain.Class, error) {
-	if err := r.ensureGymExists(gymID); err != nil {
+func (r *GymRepository) ListClassesByGymID(ctx context.Context, gymID int) ([]domain.Class, error) {
+	if err := r.ensureGymExists(ctx, gymID); err != nil {
 		return nil, err
 	}
 
-	rows, err := r.db.Query(
+	rows, err := r.db.QueryContext(
+		ctx,
 		`SELECT id, gym_id, name, max_capacity FROM classes WHERE gym_id = $1 ORDER BY id`,
 		gymID,
 	)
@@ -149,13 +153,14 @@ func (r *GymRepository) ListClassesByGymID(gymID int) ([]domain.Class, error) {
 	return classes, rows.Err()
 }
 
-func (r *GymRepository) CreateClass(class domain.Class) (*domain.Class, error) {
-	if err := r.ensureGymExists(class.GymID); err != nil {
+func (r *GymRepository) CreateClass(ctx context.Context, class domain.Class) (*domain.Class, error) {
+	if err := r.ensureGymExists(ctx, class.GymID); err != nil {
 		return nil, err
 	}
 
 	created := &domain.Class{}
-	err := r.db.QueryRow(
+	err := r.db.QueryRowContext(
+		ctx,
 		`INSERT INTO classes (gym_id, name, max_capacity) VALUES ($1, $2, $3) RETURNING id, gym_id, name, max_capacity`,
 		class.GymID,
 		class.Name,
@@ -168,12 +173,13 @@ func (r *GymRepository) CreateClass(class domain.Class) (*domain.Class, error) {
 	return created, nil
 }
 
-func (r *GymRepository) ListSessionsByGymAndClassID(gymID, classID int) ([]domain.Session, error) {
-	if err := r.ensureClassBelongsToGym(gymID, classID); err != nil {
+func (r *GymRepository) ListSessionsByGymAndClassID(ctx context.Context, gymID, classID int) ([]domain.Session, error) {
+	if err := r.ensureClassBelongsToGym(ctx, gymID, classID); err != nil {
 		return nil, err
 	}
 
-	rows, err := r.db.Query(
+	rows, err := r.db.QueryContext(
+		ctx,
 		`SELECT id, class_id, start_time, end_time, available_slots, price, status
 		FROM class_sessions
 		WHERE class_id = $1
@@ -205,13 +211,14 @@ func (r *GymRepository) ListSessionsByGymAndClassID(gymID, classID int) ([]domai
 	return sessions, rows.Err()
 }
 
-func (r *GymRepository) CreateSession(gymID int, session domain.Session) (*domain.Session, error) {
-	if err := r.ensureClassBelongsToGym(gymID, session.ClassID); err != nil {
+func (r *GymRepository) CreateSession(ctx context.Context, gymID int, session domain.Session) (*domain.Session, error) {
+	if err := r.ensureClassBelongsToGym(ctx, gymID, session.ClassID); err != nil {
 		return nil, err
 	}
 
 	created := &domain.Session{}
-	err := r.db.QueryRow(
+	err := r.db.QueryRowContext(
+		ctx,
 		`INSERT INTO class_sessions (class_id, start_time, end_time, available_slots, price, status)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id, class_id, start_time, end_time, available_slots, price, status`,
@@ -237,7 +244,7 @@ func (r *GymRepository) CreateSession(gymID int, session domain.Session) (*domai
 	return created, nil
 }
 
-func (r *GymRepository) GetAvailableSessions() ([]Session, error) {
+func (r *GymRepository) GetAvailableSessions(ctx context.Context) ([]Session, error) {
 	query := `
 		SELECT s.id, g.name, c.name, s.start_time, s.available_slots, s.price
 		FROM class_sessions s
@@ -245,7 +252,7 @@ func (r *GymRepository) GetAvailableSessions() ([]Session, error) {
 		JOIN gyms g ON c.gym_id = g.id
 		WHERE s.available_slots > 0 AND s.start_time > NOW()
 	`
-	rows, err := r.db.Query(query)
+	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -263,9 +270,9 @@ func (r *GymRepository) GetAvailableSessions() ([]Session, error) {
 	return sessions, nil
 }
 
-func (r *GymRepository) ensureGymExists(gymID int) error {
+func (r *GymRepository) ensureGymExists(ctx context.Context, gymID int) error {
 	var exists bool
-	err := r.db.QueryRow(`SELECT EXISTS(SELECT 1 FROM gyms WHERE id = $1)`, gymID).Scan(&exists)
+	err := r.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM gyms WHERE id = $1)`, gymID).Scan(&exists)
 	if err != nil {
 		return err
 	}
@@ -275,9 +282,9 @@ func (r *GymRepository) ensureGymExists(gymID int) error {
 	return nil
 }
 
-func (r *GymRepository) ensureClassExists(classID int) error {
+func (r *GymRepository) ensureClassExists(ctx context.Context, classID int) error {
 	var exists bool
-	err := r.db.QueryRow(`SELECT EXISTS(SELECT 1 FROM classes WHERE id = $1)`, classID).Scan(&exists)
+	err := r.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM classes WHERE id = $1)`, classID).Scan(&exists)
 	if err != nil {
 		return err
 	}
@@ -287,9 +294,10 @@ func (r *GymRepository) ensureClassExists(classID int) error {
 	return nil
 }
 
-func (r *GymRepository) GetClassByID(classID int) (*domain.Class, error) {
+func (r *GymRepository) GetClassByID(ctx context.Context, classID int) (*domain.Class, error) {
 	class := &domain.Class{}
-	err := r.db.QueryRow(
+	err := r.db.QueryRowContext(
+		ctx,
 		`SELECT id, gym_id, name, max_capacity FROM classes WHERE id = $1`,
 		classID,
 	).Scan(&class.ID, &class.GymID, &class.Name, &class.MaxCapacity)
@@ -303,12 +311,12 @@ func (r *GymRepository) GetClassByID(classID int) (*domain.Class, error) {
 	return class, nil
 }
 
-func (r *GymRepository) ensureClassBelongsToGym(gymID, classID int) error {
-	if err := r.ensureGymExists(gymID); err != nil {
+func (r *GymRepository) ensureClassBelongsToGym(ctx context.Context, gymID, classID int) error {
+	if err := r.ensureGymExists(ctx, gymID); err != nil {
 		return err
 	}
 
-	class, err := r.GetClassByID(classID)
+	class, err := r.GetClassByID(ctx, classID)
 	if err != nil {
 		return err
 	}
@@ -320,14 +328,14 @@ func (r *GymRepository) ensureClassBelongsToGym(gymID, classID int) error {
 	return nil
 }
 
-func (r *GymRepository) AssignTrainer(gymID int, trainerID int) error {
-	if err := r.ensureGymExists(gymID); err != nil {
+func (r *GymRepository) AssignTrainer(ctx context.Context, gymID int, trainerID int) error {
+	if err := r.ensureGymExists(ctx, gymID); err != nil {
 		return err
 	}
 
-	_, err := r.db.Exec(`INSERT INTO gym_trainers (gym_id, user_id) VALUES ($1, $2)`, gymID, trainerID)
+	_, err := r.db.ExecContext(ctx, `INSERT INTO gym_trainers (gym_id, user_id) VALUES ($1, $2)`, gymID, trainerID)
 	if err != nil {
-		if pgErr, ok := err.(*pq.Error); ok && pgErr.Code == "23505" {
+		if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == "23505" {
 			return errors.New("trainer is already assigned to this gym")
 		}
 		return err

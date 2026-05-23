@@ -10,6 +10,8 @@
 - Public listing endpoints for gyms, classes, and sessions
 - Booking creation with wallet balance deduction
 - Booking cancellation with refund handling
+- Attendance tracking via QR codes
+- Automatic background maintenance (e.g., auto-completing expired sessions)
 - PostgreSQL persistence with automatic migrations on application startup
 - Seed command for creating the initial admin user and optional demo records
 
@@ -32,7 +34,7 @@
 ├── database/
 │   └── migrations/  # SQL migrations
 ├── internal/
-│   ├── auth/        # JWT generation and parsing
+│   ├── auth/        # JWT generation and parsing (including Attendance tokens)
 │   ├── config/      # Environment-based configuration
 │   ├── domain/      # Core entities
 │   ├── handler/     # HTTP handlers
@@ -40,7 +42,8 @@
 │   │   └── database/# DB connection and migration bootstrap
 │   ├── middleware/  # Auth, RBAC, request logging
 │   ├── repository/  # Database access layer
-│   └── usecase/     # Business logic
+│   ├── usecase/     # Business logic
+│   └── worker/      # Background maintenance workers
 ├── pkg/
 │   └── logger/      # Application logger setup
 ├── Dockerfile
@@ -69,7 +72,8 @@ The application reads configuration from environment variables and optionally fr
 | `SEED_ADMIN_EMAIL` | none | Yes for `cmd/seed` | Admin email created by the seed command |
 | `SEED_ADMIN_PASSWORD` | none | Yes for `cmd/seed` | Admin password created by the seed command |
 | `SEED_ADMIN_FULL_NAME` | `Initial Admin` | No | Admin full name for seed data |
-| `SEED_DEMO_DATA` | `false` | No | When `true`, also seeds a demo gym, class, and session |
+| `SEED_DEMO_DATA` | `false` | No | When `true`, also seeds demo gyms, classes, and sessions |
+| `BYPASS_ATTENDANCE_TIME_CHECK` | `false` | No | When `true`, allows marking attendance before session starts (Testing only) |
 
 Example `.env`:
 
@@ -90,9 +94,27 @@ SEED_DEMO_DATA=true
 
 ## Running Locally
 
-1. Start PostgreSQL.
-2. Create a `.env` file in the project root.
-3. Run the API:
+### 1. Start PostgreSQL.
+### 2. Clone the repository:
+
+```bash
+git clone https://github.com/yertaypert/gym-booking-api.git # or SSH
+cd gym-booking-api
+```
+
+### 3. Create database:
+
+```bash
+psql -U postgres -c "CREATE DATABASE gym_booking;" # replace postgres with your superuser
+```
+
+### 4. Configure environment variables, copy example env:
+
+```bash
+cp .env.example .env
+```
+
+### 5. Run the API:
 
 ```bash
 go run ./cmd/api
@@ -130,10 +152,12 @@ What the seed command does:
 
 ## Authentication and Roles
 
-There are two roles in the system:
+There are four roles in the system:
 
-- `user`
-- `admin`
+- `user`: Standard member, can book sessions and view own profile.
+- `trainer`: Professional instructor, can be assigned to gyms.
+- `gym_owner`: Can manage gyms, classes, and sessions for their own properties.
+- `admin`: Full system access, including global management and role updates.
 
 Authentication is based on a Bearer token:
 
@@ -143,9 +167,11 @@ Authorization: Bearer <jwt>
 
 Access rules:
 
-- Public: browse gyms, gym details, classes, and sessions
-- Authenticated user: view own profile, create bookings, cancel own bookings
-- Admin: all authenticated user capabilities plus create gyms, classes, and sessions
+- Public: browse gyms, gym details, classes, and sessions.
+- Authenticated user: view own profile, top up wallet, create bookings, cancel own bookings, scan attendance.
+- Gym Owner/Admin: manage gyms, classes, and sessions. View attendee lists and generate QR codes.
+- Admin: manage all gyms and change user roles.
+
 
 ## Booking and Wallet Behavior
 
@@ -161,6 +187,19 @@ Booking cancellation is also transactional:
 - Admins can cancel any booking
 - On success, the booking is marked as cancelled, the session slot is restored, and the user receives a refund transaction
 
+## Background Workers
+
+The system includes a background worker manager that handles periodic maintenance tasks:
+
+- **Session Auto-Completion:** Runs every minute to transition `active` sessions to `completed` status once their `end_time` has passed. This ensures data integrity and prevents modifications to past events.
+
+## Attendance & QR Codes
+
+Gym owners and admins can generate attendance tokens for their sessions. Users can then "scan" these tokens to mark themselves as attended.
+
+1. **Generation:** Owner calls `/sessions/{sessionId}/attendance-qr` to get a temporary token.
+2. **Scanning:** User calls `/attendance/scan` with the token/qr_code to mark attendance.
+3. **Verification:** System verifies the user has a confirmed booking for that session and that the session has started (unless bypassed by `BYPASS_ATTENDANCE_TIME_CHECK=true`).
 
 ## API Endpoints
 

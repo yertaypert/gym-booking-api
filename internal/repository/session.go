@@ -31,9 +31,33 @@ func (r *sqlSessionRepository) GetByID(ctx context.Context, sessionID int) (*dom
 		&session.Status,
 	)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
 		return nil, err
 	}
 	return &session, nil
+}
+
+func (r *sqlSessionRepository) GetGymOwnerIDBySessionID(ctx context.Context, sessionID int) (int, error) {
+	query := `
+		SELECT g.owner_id
+		FROM class_sessions s
+		JOIN classes c ON c.id = s.class_id
+		JOIN gyms g ON g.id = c.gym_id
+		WHERE s.id = $1
+	`
+
+	var ownerID int
+	err := r.db.QueryRowContext(ctx, query, sessionID).Scan(&ownerID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, ErrNotFound
+		}
+		return 0, err
+	}
+
+	return ownerID, nil
 }
 
 func (r *sqlSessionRepository) DecreaseAvailableSlots(ctx context.Context, tx *sql.Tx, sessionID int) error {
@@ -58,4 +82,17 @@ func (r *sqlSessionRepository) IncreaseAvailableSlots(ctx context.Context, tx *s
               WHERE id = $1`
 	_, err := tx.ExecContext(ctx, query, sessionID)
 	return err
+}
+
+func (r *sqlSessionRepository) UpdateExpiredSessions(ctx context.Context) (int64, error) {
+	query := `UPDATE class_sessions 
+              SET status = 'completed' 
+              WHERE status = 'active' AND end_time < NOW()`
+
+	result, err := r.db.ExecContext(ctx, query)
+	if err != nil {
+		return 0, err
+	}
+
+	return result.RowsAffected()
 }

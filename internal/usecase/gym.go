@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"time"
@@ -29,16 +30,16 @@ func NewGymUsecase(repo GymRepository) *GymUsecase {
 	return &GymUsecase{gymRepo: repo}
 }
 
-func (u *GymUsecase) ListGyms() ([]domain.Gym, error) {
-	return u.gymRepo.ListGyms()
+func (u *GymUsecase) ListGyms(ctx context.Context) ([]domain.Gym, error) {
+	return u.gymRepo.ListGyms(ctx)
 }
 
-func (u *GymUsecase) ListGymsByOwner(ownerID int) ([]domain.Gym, error) {
-	return u.gymRepo.ListGymsByOwnerID(ownerID)
+func (u *GymUsecase) ListGymsByOwner(ctx context.Context, ownerID int) ([]domain.Gym, error) {
+	return u.gymRepo.ListGymsByOwnerID(ctx, ownerID)
 }
 
-func (u *GymUsecase) GetGym(id int) (*domain.Gym, error) {
-	gym, err := u.gymRepo.GetGymByID(id)
+func (u *GymUsecase) GetGym(ctx context.Context, id int) (*domain.Gym, error) {
+	gym, err := u.gymRepo.GetGymByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, repository.ErrGymNotFound) {
 			return nil, ErrGymNotFound
@@ -49,8 +50,8 @@ func (u *GymUsecase) GetGym(id int) (*domain.Gym, error) {
 	return gym, nil
 }
 
-func (u *GymUsecase) ListGymClasses(gymID int) ([]domain.Class, error) {
-	classes, err := u.gymRepo.ListClassesByGymID(gymID)
+func (u *GymUsecase) ListGymClasses(ctx context.Context, gymID int) ([]domain.Class, error) {
+	classes, err := u.gymRepo.ListClassesByGymID(ctx, gymID)
 	if err != nil {
 		if errors.Is(err, repository.ErrGymNotFound) {
 			return nil, ErrGymNotFound
@@ -61,8 +62,8 @@ func (u *GymUsecase) ListGymClasses(gymID int) ([]domain.Class, error) {
 	return classes, nil
 }
 
-func (u *GymUsecase) ListClassSessions(gymID, classID int) ([]domain.Session, error) {
-	sessions, err := u.gymRepo.ListSessionsByGymAndClassID(gymID, classID)
+func (u *GymUsecase) ListClassSessions(ctx context.Context, gymID, classID int) ([]domain.Session, error) {
+	sessions, err := u.gymRepo.ListSessionsByGymAndClassID(ctx, gymID, classID)
 	if err != nil {
 		switch {
 		case errors.Is(err, repository.ErrGymNotFound):
@@ -78,7 +79,7 @@ func (u *GymUsecase) ListClassSessions(gymID, classID int) ([]domain.Session, er
 	return sessions, nil
 }
 
-func (u *GymUsecase) CreateGym(ownerID int, name, address, description string) (*domain.Gym, error) {
+func (u *GymUsecase) CreateGym(ctx context.Context, ownerID int, name, address, description string) (*domain.Gym, error) {
 	if ownerID <= 0 {
 		return nil, ErrInvalidOwnerID
 	}
@@ -94,7 +95,7 @@ func (u *GymUsecase) CreateGym(ownerID int, name, address, description string) (
 		return nil, ErrInvalidGymName
 	}
 
-	created, err := u.gymRepo.CreateGym(gym)
+	created, err := u.gymRepo.CreateGym(ctx, gym)
 	if err != nil {
 		if errors.Is(err, repository.ErrGymAlreadyExists) {
 			return nil, ErrGymAlreadyExists
@@ -105,8 +106,8 @@ func (u *GymUsecase) CreateGym(ownerID int, name, address, description string) (
 	return created, nil
 }
 
-func (u *GymUsecase) CreateClass(userID int, userRole domain.UserRole, gymID int, name string, maxCapacity int) (*domain.Class, error) {
-	gym, err := u.GetGym(gymID)
+func (u *GymUsecase) CreateClass(ctx context.Context, userID int, userRole domain.UserRole, gymID int, name string, maxCapacity int) (*domain.Class, error) {
+	gym, err := u.GetGym(ctx, gymID)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +129,7 @@ func (u *GymUsecase) CreateClass(userID int, userRole domain.UserRole, gymID int
 		return nil, ErrInvalidMaxCapacity
 	}
 
-	created, err := u.gymRepo.CreateClass(class)
+	created, err := u.gymRepo.CreateClass(ctx, class)
 	if err != nil {
 		if errors.Is(err, repository.ErrGymNotFound) {
 			return nil, ErrGymNotFound
@@ -139,8 +140,8 @@ func (u *GymUsecase) CreateClass(userID int, userRole domain.UserRole, gymID int
 	return created, nil
 }
 
-func (u *GymUsecase) CreateSession(userID int, userRole domain.UserRole, gymID, classID int, startTime, endTime time.Time, price float64) (*domain.Session, error) {
-	gym, err := u.GetGym(gymID)
+func (u *GymUsecase) CreateSession(ctx context.Context, userID int, userRole domain.UserRole, gymID, classID int, startTime, endTime time.Time, price float64) (*domain.Session, error) {
+	gym, err := u.GetGym(ctx, gymID)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +157,7 @@ func (u *GymUsecase) CreateSession(userID int, userRole domain.UserRole, gymID, 
 		return nil, ErrInvalidSessionPrice
 	}
 
-	class, err := u.gymRepo.GetClassByID(classID)
+	class, err := u.gymRepo.GetClassByID(ctx, classID)
 	if err != nil {
 		if errors.Is(err, repository.ErrClassNotFound) {
 			return nil, ErrClassNotFound
@@ -173,10 +174,10 @@ func (u *GymUsecase) CreateSession(userID int, userRole domain.UserRole, gymID, 
 		EndTime:        endTime,
 		AvailableSlots: class.MaxCapacity,
 		Price:          price,
-		Status:         "active",
+		Status:         domain.SessionStatusActive,
 	}
 
-	created, err := u.gymRepo.CreateSession(gymID, session)
+	created, err := u.gymRepo.CreateSession(ctx, gymID, session)
 	if err != nil {
 		switch {
 		case errors.Is(err, repository.ErrGymNotFound):
@@ -192,6 +193,6 @@ func (u *GymUsecase) CreateSession(userID int, userRole domain.UserRole, gymID, 
 	return created, nil
 }
 
-func (u *GymUsecase) AssignTrainer(gymID int, trainerID int) error {
-	return u.gymRepo.AssignTrainer(gymID, trainerID)
+func (u *GymUsecase) AssignTrainer(ctx context.Context, gymID int, trainerID int) error {
+	return u.gymRepo.AssignTrainer(ctx, gymID, trainerID)
 }

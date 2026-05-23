@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/yertaypert/gym-booking-api/internal/domain"
@@ -14,19 +15,19 @@ func NewTransactionRepository(db *sql.DB) *TransactionRepository {
 	return &TransactionRepository{db: db}
 }
 
-func (r *TransactionRepository) Create(t *domain.Transaction) error {
+func (r *TransactionRepository) Create(ctx context.Context, t *domain.Transaction) error {
 	query := `INSERT INTO transactions (user_id, amount, type, created_at) 
 			  VALUES ($1, $2, $3, $4) RETURNING id`
 
-	err := r.db.QueryRow(query, t.UserID, t.Amount, t.Type, t.CreatedAt).Scan(&t.ID)
+	err := r.db.QueryRowContext(ctx, query, t.UserID, t.Amount, t.Type, t.CreatedAt).Scan(&t.ID)
 	return err
 }
 
-func (r *TransactionRepository) GetByUserID(userID int) ([]domain.Transaction, error) {
+func (r *TransactionRepository) GetByUserID(ctx context.Context, userID int) ([]domain.Transaction, error) {
 	query := `SELECT id, user_id, booking_id, amount, type, created_at 
 	          FROM transactions WHERE user_id = $1 ORDER BY created_at DESC`
 
-	rows, err := r.db.Query(query, userID)
+	rows, err := r.db.QueryContext(ctx, query, userID)
 	if err != nil {
 		return nil, err
 	}

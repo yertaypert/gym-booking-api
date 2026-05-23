@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 )
@@ -17,23 +18,23 @@ func NewWalletUsecase(db *sql.DB, walletRepo WalletRepository) *WalletUsecase {
 	}
 }
 
-func (u *WalletUsecase) TopUpBalance(userID int, amount float64) error {
+func (u *WalletUsecase) TopUpBalance(ctx context.Context, userID int, amount float64) error {
 	if amount <= 0 {
 		return errors.New("amount must be greater than zero")
 	}
 
-	tx, err := u.db.Begin()
+	tx, err := u.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	err = u.walletRepo.UpdateBalance(tx, userID, amount)
+	err = u.walletRepo.UpdateBalance(ctx, tx, userID, amount)
 	if err != nil {
 		return err
 	}
 
-	err = u.walletRepo.CreateTransaction(tx, userID, nil, amount, "top_up")
+	err = u.walletRepo.CreateTransaction(ctx, tx, userID, nil, amount, "top_up")
 	if err != nil {
 		return err
 	}
